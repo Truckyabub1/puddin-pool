@@ -1,0 +1,20 @@
+{
+  "name": "Puddin's Pool",
+  "short_name": "Puddin's Pool",
+  "description": "Official WPA Tournament & Valley 7-Foot Bar Box Billiards with Coach Puddin",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "categories": ["games", "sports"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
