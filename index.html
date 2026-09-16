@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Puddin's Pool</title>
+  <meta name="description" content="Puddin's Pool - Official WPA Tournament & Valley 7-Foot Bar Box Billiards" />
+  <meta name="theme-color" content="#0b0e14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <script type="module" crossorigin src="./assets/index-DaNFXGgv.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-H0ERj44J.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Safe Area Bounded Hardware Container -->
+    <div id="game-root">
+      <canvas id="table-canvas"></canvas>
+      <div id="controls-root"></div>
+      <div id="stroke-root"></div>
+      <div id="touch-overlay-root"></div>
+      
+      <!-- Coach Puddin Interactive HUD (Top-Left Anchor) -->
+      <div id="coach-wrapper" class="coach-puddin-wrapper">
+        <div class="coach-avatar-container">
+          <canvas id="coach-avatar-canvas" class="coach-avatar-canvas" width="100" height="100"></canvas>
+          <div class="coach-badge">COACH PUDDIN</div>
+        </div>
+        <div id="elder-wisdom-root"></div>
+      </div>
+    </div>
+
+    <!-- Portrait Mode Orientation Gate -->
+    <div id="orientation-gate">
+      <div class="rotate-icon-box">
+        <svg class="rotate-phone-svg" viewBox="0 0 24 24">
+          <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+        </svg>
+      </div>
+      <h2 class="rotate-title">Rotate Device</h2>
+      <p class="rotate-subtitle">Turn your device to landscape for the authentic championship table experience.</p>
+    </div>
+  </div>
+</body>
+</html>
