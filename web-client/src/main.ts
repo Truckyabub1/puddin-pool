@@ -493,4 +493,8 @@ class PuddinPoolApp {
 // Initialize on DOM load
 window.addEventListener('DOMContentLoaded', () => {
   new PuddinPoolApp();
+
+  if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
 });

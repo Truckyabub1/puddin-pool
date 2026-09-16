@@ -59,13 +59,14 @@ export class StrokeController {
     this.container.innerHTML = `
       <div class="stroke-controller-root">
         <!-- 3D Tip-Spin & Elevation HUD -->
-        <div class="tip-elevation-panel">
+        <div class="tip-elevation-panel" id="tip-elevation-panel">
           <div class="panel-header">
             <span class="hud-pill-label">3D TIP & TILT</span>
             <div class="mode-toggle-group">
               <button id="btn-mode-pull" class="mode-btn active" title="Miniclip Pull-Back">SPRING</button>
               <button id="btn-mode-pro" class="mode-btn" title="Pro Analog Velocity Stroke">PRO</button>
             </div>
+            <button id="btn-toggle-tip" class="tip-toggle-btn" title="Collapse or Expand Tip Panel">−</button>
           </div>
 
           <div class="tip-3d-wrapper">
@@ -126,6 +127,17 @@ export class StrokeController {
       zonePro.classList.remove('hidden');
       trayPull.classList.add('hidden');
     });
+
+    // Tip Panel Collapse Toggle
+    const tipPanel = this.container.querySelector('#tip-elevation-panel') as HTMLElement;
+    const btnToggleTip = this.container.querySelector('#btn-toggle-tip') as HTMLButtonElement;
+    if (btnToggleTip && tipPanel) {
+      btnToggleTip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = tipPanel.classList.toggle('collapsed');
+        btnToggleTip.textContent = isCollapsed ? '+' : '−';
+      });
+    }
 
     // 3D Tip Sphere dragging
     const tipSphere = this.container.querySelector('#tip-sphere') as HTMLElement;

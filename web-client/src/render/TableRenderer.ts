@@ -85,10 +85,11 @@ export class TableRenderer {
       stageW = stageH * stageAspect;
     }
 
-    const paddingX = 40 * dpr;
-    const paddingY = 60 * dpr;
-    const availW = stageW - paddingX * 2;
-    const availH = stageH - paddingY * 2;
+    const isCompact = (containerW <= 920 || containerH <= 500);
+    const paddingX = (isCompact ? 85 : 45) * dpr;
+    const paddingY = (isCompact ? 38 : 60) * dpr;
+    const availW = Math.max(stageW - paddingX * 2, 280 * dpr);
+    const availH = Math.max(stageH - paddingY * 2, 140 * dpr);
 
     const tableAspect = tableWidthMeters / tableHeightMeters; // 2.0:1
     let drawW = availW;
