@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Puddin's Pool</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: #0f141c;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+    header {
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      z-index: 20;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: 0.5px;
+    }
+    .brand .badge {
+      background: #0ea5e9;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+    button.btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button.btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #64748b;
+    }
+    button.btn-primary {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+    }
+    button.btn-primary:hover {
+      background: #0369a1;
+    }
+
+    #game-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at center, #1e293b 0%, #0b0f17 100%);
+    }
+
+    canvas#pool-table {
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: #0a4427;
+      cursor: crosshair;
+    }
+
+    /* Coach Puddin Avatar Overlay */
+    #coach-overlay {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      z-index: 30;
+      pointer-events: none;
+      max-width: 440px;
+    }
+    .coach-bust {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+      background: #1e293b;
+      overflow: hidden;
+      flex-shrink: 0;
+      pointer-events: auto;
+      cursor: pointer;
+      position: relative;
+    }
+    .coach-bust svg {
+      width: 100%;
+      height: 100%;
+    }
+    .speech-bubble {
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(10px);
+      border: 1px solid #38bdf8;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      color: #f1f5f9;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      pointer-events: auto;
+      position: relative;
+    }
+    .speech-bubble::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: 18px;
+      border-width: 6px 8px 6px 0;
+      border-style: solid;
+      border-color: transparent #38bdf8 transparent transparent;
+    }
+    .speech-bubble .coach-name {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    /* Controls Overlay */
+    #controls-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    /* Cue Stick Slider (Right Edge) */
+    .cue-slider-container {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 280px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #475569;
+      border-radius: 22px;
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .cue-slider-track {
+      position: relative;
+      width: 8px;
+      height: 220px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .cue-slider-fill {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(to top, #0284c7, #f43f5e);
+      border-radius: 4px;
+    }
+    .cue-slider-thumb {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f8fafc;
+      border: 2px solid #0ea5e9;
+      bottom: 0;
+      transform: translateY(50%);
+      cursor: grab;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+    .slider-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    /* Spin HUD (Bottom Left) */
+    .spin-hud-container {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      width: 76px;
+      height: 76px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #475569;
+      border-radius: 50%;
+      backdrop-filter: blur(6px);
+      pointer-events: auto;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .spin-cue-ball {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, #cbd5e1);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.4);
+      position: relative;
+      cursor: crosshair;
+    }
+    .spin-cue-ball::before, .spin-cue-ball::after {
+      content: "";
+      position: absolute;
+      background: rgba(100, 116, 139, 0.4);
+    }
+    .spin-cue-ball::before {
+      top: 50%; left: 0; right: 0; height: 1px;
+    }
+    .spin-cue-ball::after {
+      left: 50%; top: 0; bottom: 0; width: 1px;
+    }
+    .spin-tip-dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f43f5e;
+      border: 1px solid #fff;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    /* Fine Aim Dial (Bottom Right) */
+    .fine-aim-container {
+      position: absolute;
+      right: 80px;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid #475569;
+      pointer-events: auto;
+    }
+    .fine-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #334155;
+      color: #fff;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .fine-btn:hover { background: #475569; }
+    .fine-label { font-size: 0.72rem; color: #94a3b8; font-weight: 600; }
+
+    /* Emote Drawer Modal */
+    #emote-drawer {
+      position: absolute;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: none;
+      gap: 12px;
+      z-index: 40;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+    }
+    .emote-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .emote-card:hover { background: #1e293b; }
+    .emote-card .icon { font-size: 1.6rem; }
+    .emote-card .label { font-size: 0.68rem; color: #cbd5e1; font-weight: 600; }
+
+    /* Scoreboard */
+    #status-bar {
+      position: absolute;
+      top: 14px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #475569;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      gap: 14px;
+    }
+    #status-bar span b { color: #f8fafc; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Puddin's Pool</h1>
+      <span class="badge">Live Web v1.0</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btn-ask-puddin">
+        <span>👴</span> Ask Elder Puddin
+      </button>
+      <button class="btn" id="btn-emotes">
+        <span>💬</span> Emotes
+      </button>
+      <button class="btn" id="btn-reset">
+        <span>🔄</span> Reset Rack
+      </button>
+    </div>
+  </header>
+
+  <div id="game-container">
+    <canvas id="pool-table"></canvas>
+
+    <!-- Coach Puddin Overlay -->
+    <div id="coach-overlay">
+      <div class="coach-bust" id="coach-bust" title="Coach Puddin">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background circle -->
+          <rect width="100" height="100" fill="#1e293b"/>
+          <!-- Fair Isle knit sweater body -->
+          <path d="M 20 100 L 25 70 L 40 65 L 60 65 L 75 70 L 80 100 Z" fill="#2d3748"/>
+          <!-- Sweater pattern stripes -->
+          <path d="M 24 74 L 76 74" stroke="#e2e8f0" stroke-width="2" stroke-dasharray="3,3"/>
+          <path d="M 22 84 L 78 84" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4,2"/>
+          <!-- Dark collared shirt -->
+          <polygon points="40,65 50,75 60,65" fill="#0f172a"/>
+          <!-- Neck -->
+          <rect x="42" y="52" width="16" height="16" fill="#fbd38d"/>
+          <!-- Head / Face -->
+          <ellipse cx="50" cy="42" rx="18" ry="22" fill="#fbd38d"/>
+          <!-- Silver hair -->
+          <path d="M 28 42 C 28 22 72 22 72 42 C 72 32 68 20 50 20 C 32 20 28 32 28 42 Z" fill="#e2e8f0"/>
+          <!-- Wire-rimmed glasses -->
+          <circle cx="43" cy="40" r="5" fill="none" stroke="#475569" stroke-width="1.5"/>
+          <circle cx="57" cy="40" r="5" fill="none" stroke="#475569" stroke-width="1.5"/>
+          <line x1="48" y1="40" x2="52" y2="40" stroke="#475569" stroke-width="1.5"/>
+          <!-- Eyes & warm wrinkles -->
+          <circle cx="43" cy="40" r="1.5" fill="#1e293b"/>
+          <circle cx="57" cy="40" r="1.5" fill="#1e293b"/>
+          <path d="M 36 38 C 38 35 48 35 50 38" fill="none" stroke="#cbd5e0" stroke-width="1"/>
+          <path d="M 50 38 C 52 35 62 35 64 38" fill="none" stroke="#cbd5e0" stroke-width="1"/>
+          <!-- Gentle reassuring smile -->
+          <path d="M 44 52 Q 50 56 56 52" fill="none" stroke="#718096" stroke-width="1.8" stroke-linecap="round"/>
+          <!-- Pool Cue in hand -->
+          <line x1="82" y1="20" x2="76" y2="100" stroke="#d69e2e" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- Billiard cue ball held in other hand -->
+          <circle cx="22" cy="76" r="6.5" fill="#ffffff" stroke="#cbd5e0" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="speech-bubble" id="speech-bubble">
+        <div class="coach-name">Coach Puddin</div>
+        <div id="speech-text">Welcome to the felt, son! Line 'em up and let's see what you've got.</div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <span>Balls: <b id="balls-left">15</b></span>
+      <span>State: <b id="sim-state">Rest</b></span>
+    </div>
+
+    <!-- Controls Layer -->
+    <div id="controls-layer">
+      <!-- Cue Slider (Pull back power) -->
+      <div class="cue-slider-container" id="cue-slider-container">
+        <div class="cue-slider-track">
+          <div class="cue-slider-fill" id="cue-slider-fill"></div>
+          <div class="cue-slider-thumb" id="cue-slider-thumb"></div>
+        </div>
+        <div class="slider-label">Power</div>
+      </div>
+
+      <!-- Spin HUD -->
+      <div class="spin-hud-container" id="spin-hud" title="Cue Ball English / Vertical Spin">
+        <div class="spin-cue-ball" id="spin-ball">
+          <div class="spin-tip-dot" id="spin-tip"></div>
+        </div>
+      </div>
+
+      <!-- Fine Aim Dial -->
+      <div class="fine-aim-container">
+        <button class="fine-btn" id="fine-left">◀</button>
+        <span class="fine-label">0.05°</span>
+        <button class="fine-btn" id="fine-right">▶</button>
+      </div>
+    </div>
+
+    <!-- Emote Drawer -->
+    <div id="emote-drawer">
+      <div class="emote-card" data-emote="nod">
+        <span class="icon">👴🤝</span>
+        <span class="label">Knowing Nod</span>
+      </div>
+      <div class="emote-card" data-emote="ball9">
+        <span class="icon">🟡✨</span>
+        <span class="label">Golden 9-Ball</span>
+      </div>
+      <div class="emote-card" data-emote="angle">
+        <span class="icon">🧐📐</span>
+        <span class="label">Angle Check</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Procedural Web Audio Engine ---
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+      playImpact(intensity = 0.5) {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(140 + intensity * 60, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+        gain.gain.setValueAtTime(Math.min(1.0, intensity * 0.8), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+      playCushion(speed = 0.5) {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(350, now);
+
+        gain.gain.setValueAtTime(Math.min(0.7, speed * 0.5), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.12);
+      }
+      playPocket() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.25);
+
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+      playBlip() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(320, now);
+
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+    }
+
+    const audio = new AudioEngine();
+
+    // --- Billiards Physics & Game State ---
+    const canvas = document.getElementById("pool-table");
+    const ctx = canvas.getContext("2d");
+
+    const BALL_RADIUS_M = 0.028575;
+    const TABLE_WIDTH_M = 2.24;
+    const TABLE_HEIGHT_M = 1.12;
+    const BALL_MASS = 0.17;
+    const BALL_RESTITUTION = 0.96;
+    const CUSHION_RESTITUTION = 0.85;
+    const SLIDING_FRICTION = 0.20;
+    const ROLLING_FRICTION = 0.015;
+    const GRAVITY = 9.80665;
+
+    let scale = 1;
+    let originX = 0;
+    let originY = 0;
+
+    let aimAngle = 0.0;
+    let pullTension = 0.0;
+    let spinX = 0.0;
+    let spinY = 0.0;
+
+    let isPulling = false;
+    let isAiming = false;
+    let isQuiescent = true;
+
+    const balls = [];
+    const pockets = [];
+
+    // Ball Colors (Solid and Striped standard colors)
+    const BALL_COLORS = [
+      "#ffffff", // 0: Cue Ball
+      "#fbbf24", // 1: Yellow
+      "#2563eb", // 2: Blue
+      "#dc2626", // 3: Red
+      "#7c3aed", // 4: Purple
+      "#ea580c", // 5: Orange
+      "#16a34a", // 6: Green
+      "#854d0e", // 7: Brown
+      "#111827", // 8: Black
+      "#fbbf24", // 9: Yellow Stripe
+      "#2563eb", // 10: Blue Stripe
+      "#dc2626", // 11: Red Stripe
+      "#7c3aed", // 12: Purple Stripe
+      "#ea580c", // 13: Orange Stripe
+      "#16a34a", // 14: Green Stripe
+      "#854d0e"  // 15: Brown Stripe
+    ];
+
+    class Ball {
+      constructor(id, x, y) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.isSunk = false;
+        this.state = "stationary"; // stationary, sliding, rolling
+        this.transSpeed = 0;
+        this.rotationAngle = 0;
+      }
+      get speed() {
+        return Math.hypot(this.vx, this.vy);
+      }
+    }
+
+    function initTableDimensions() {
+      const container = document.getElementById("game-container");
+      const margin = 40;
+      const availW = container.clientWidth - margin * 2;
+      const availH = container.clientHeight - margin * 2;
+
+      const aspect = TABLE_WIDTH_M / TABLE_HEIGHT_M;
+      let w = availW;
+      let h = w / aspect;
+      if (h > availH) {
+        h = availH;
+        w = h * aspect;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+
+      scale = w / TABLE_WIDTH_M;
+
+      // Pockets positions
+      pockets.length = 0;
+      const cornerR = 0.075;
+      const midR = 0.065;
+      pockets.push({ x: cornerR, y: cornerR, r: cornerR });
+      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: 0.03, r: midR });
+      pockets.push({ x: TABLE_WIDTH_M - cornerR, y: cornerR, r: cornerR });
+      pockets.push({ x: cornerR, y: TABLE_HEIGHT_M - cornerR, r: cornerR });
+      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: TABLE_HEIGHT_M - 0.03, r: midR });
+      pockets.push({ x: TABLE_WIDTH_M - cornerR, y: TABLE_HEIGHT_M - cornerR, r: cornerR });
+    }
+
+    function resetRack() {
+      balls.length = 0;
+      // Cue ball
+      balls.push(new Ball(0, TABLE_WIDTH_M * 0.25, TABLE_HEIGHT_M * 0.5));
+
+      // 15 Object balls rack (Triangle)
+      const apexX = TABLE_WIDTH_M * 0.70;
+      const apexY = TABLE_HEIGHT_M * 0.50;
+      const d = BALL_RADIUS_M * 2.0;
+      const rowSpacing = d * Math.sqrt(3.0) * 0.5;
+
+      let ballId = 1;
+      for (let row = 0; row < 5; ++row) {
+        const colX = apexX + row * rowSpacing;
+        const startY = apexY - (row * d * 0.5);
+        for (let i = 0; i <= row; ++i) {
+          const ballY = startY + i * d;
+          balls.push(new Ball(ballId++, colX, ballY));
+        }
+      }
+
+      aimAngle = 0.0;
+      pullTension = 0.0;
+      updateStatusBar();
+      setCoachDialogue("Rack is set tight, son! Don't just hit it hard, aim right through the center of that head ball.");
+    }
+
+    // --- Coach Puddin Dialogues ---
+    const speechTextEl = document.getElementById("speech-text");
+    let typewriterTimeout = null;
+
+    function setCoachDialogue(text) {
+      if (typewriterTimeout) clearTimeout(typewriterTimeout);
+      speechTextEl.textContent = "";
+      let idx = 0;
+      function type() {
+        if (idx < text.length) {
+          const c = text[idx++];
+          speechTextEl.textContent += c;
+          if (c !== " " && idx % 3 === 0) {
+            audio.playBlip();
+          }
+          typewriterTimeout = setTimeout(type, 30);
+        }
+      }
+      type();
+    }
+
+    // --- Physics Update ---
+    function stepSimulation(dt) {
+      let anyMoving = false;
+
+      // 1. Position update & friction
+      for (let i = 0; i < balls.length; ++i) {
+        const b = balls[i];
+        if (b.isSunk) continue;
+
+        const spd = b.speed;
+        if (spd > 0.0005) {
+          anyMoving = true;
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+
+          const decel = (b.state === "sliding" ? SLIDING_FRICTION : ROLLING_FRICTION) * GRAVITY;
+          const newSpd = Math.max(0, spd - decel * dt);
+          b.vx = (b.vx / spd) * newSpd;
+          b.vy = (b.vy / spd) * newSpd;
+
+          if (b.state === "sliding" && newSpd <= b.transSpeed) {
+            b.state = "rolling";
+          }
+          if (newSpd <= 0.0005) {
+            b.vx = 0;
+            b.vy = 0;
+            b.state = "stationary";
+          }
+        }
+      }
+
+      // 2. Pocket capture
+      for (const b of balls) {
+        if (b.isSunk) continue;
+        for (const p of pockets) {
+          const dist = Math.hypot(b.x - p.x, b.y - p.y);
+          if (dist < p.r) {
+            b.isSunk = true;
+            b.vx = 0;
+            b.vy = 0;
+            audio.playPocket();
+            if (b.id === 0) {
+              setCoachDialogue("Table’s forgiving, long as you learn where that cue ball wanted to go. Dust it off, son!");
+              setTimeout(() => {
+                b.isSunk = false;
+                b.x = TABLE_WIDTH_M * 0.25;
+                b.y = TABLE_HEIGHT_M * 0.5;
+              }, 1200);
+            } else {
+              setCoachDialogue("That's how you let the cue stick do the talking, son! Beautiful pot.");
+            }
+            updateStatusBar();
+            break;
+          }
+        }
+      }
+
+      // 3. Cushion reflections
+      const r = BALL_RADIUS_M;
+      for (const b of balls) {
+        if (b.isSunk) continue;
+        if (b.x - r < 0) {
+          b.x = r;
+          if (b.vx < 0) { b.vx = -b.vx * CUSHION_RESTITUTION; audio.playCushion(Math.abs(b.vx)); }
+        } else if (b.x + r > TABLE_WIDTH_M) {
+          b.x = TABLE_WIDTH_M - r;
+          if (b.vx > 0) { b.vx = -b.vx * CUSHION_RESTITUTION; audio.playCushion(Math.abs(b.vx)); }
+        }
+        if (b.y - r < 0) {
+          b.y = r;
+          if (b.vy < 0) { b.vy = -b.vy * CUSHION_RESTITUTION; audio.playCushion(Math.abs(b.vy)); }
+        } else if (b.y + r > TABLE_HEIGHT_M) {
+          b.y = TABLE_HEIGHT_M - r;
+          if (b.vy > 0) { b.vy = -b.vy * CUSHION_RESTITUTION; audio.playCushion(Math.abs(b.vy)); }
+        }
+      }
+
+      // 4. Ball-to-ball collisions
+      for (let i = 0; i < balls.length; ++i) {
+        const b1 = balls[i];
+        if (b1.isSunk) continue;
+        for (let j = i + 1; j < balls.length; ++j) {
+          const b2 = balls[j];
+          if (b2.isSunk) continue;
+
+          const dx = b2.x - b1.x;
+          const dy = b2.y - b1.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = BALL_RADIUS_M * 2.0;
+
+          if (dist < minDist && dist > 1e-6) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            // Separate overlapping balls
+            const overlap = minDist - dist;
+            b1.x -= nx * overlap * 0.5;
+            b1.y -= ny * overlap * 0.5;
+            b2.x += nx * overlap * 0.5;
+            b2.y += ny * overlap * 0.5;
+
+            // Normal relative velocity
+            const rvx = b2.vx - b1.vx;
+            const rvy = b2.vy - b1.vy;
+            const vn = rvx * nx + rvy * ny;
+
+            if (vn < 0) {
+              const impulse = -(1.0 + BALL_RESTITUTION) * vn / (2.0 / BALL_MASS);
+              b1.vx -= (impulse / BALL_MASS) * nx;
+              b1.vy -= (impulse / BALL_MASS) * ny;
+              b2.vx += (impulse / BALL_MASS) * nx;
+              b2.vy += (impulse / BALL_MASS) * ny;
+
+              b1.state = "sliding";
+              b1.transSpeed = b1.speed * (5.0 / 7.0);
+              b2.state = "sliding";
+              b2.transSpeed = b2.speed * (5.0 / 7.0);
+
+              audio.playImpact(Math.abs(vn));
+            }
+          }
+        }
+      }
+
+      isQuiescent = !anyMoving;
+      document.getElementById("sim-state").textContent = isQuiescent ? "Rest" : "Rolling";
+    }
+
+    // --- Trajectory Raycast Predictor ---
+    function predictTrajectory() {
+      const cue = balls[0];
+      if (!cue || cue.isSunk) return null;
+
+      const dirX = Math.cos(aimAngle);
+      const dirY = Math.sin(aimAngle);
+
+      let closestBall = null;
+      let closestDist = Infinity;
+
+      for (let i = 1; i < balls.length; ++i) {
+        const b = balls[i];
+        if (b.isSunk) continue;
+
+        const drx = b.x - cue.x;
+        const dry = b.y - cue.y;
+        const dpar = drx * dirX + dry * dirY;
+        if (dpar <= 0) continue;
+
+        const dperpSq = (drx * drx + dry * dry) - dpar * dpar;
+        const rSum = BALL_RADIUS_M * 2.0;
+
+        if (dperpSq < rSum * rSum) {
+          const s = dpar - Math.sqrt(rSum * rSum - dperpSq);
+          if (s > 0 && s < closestDist) {
+            closestDist = s;
+            closestBall = b;
+          }
+        }
+      }
+
+      if (closestBall) {
+        const ghostX = cue.x + dirX * closestDist;
+        const ghostY = cue.y + dirY * closestDist;
+
+        const normX = (closestBall.x - ghostX) / (BALL_RADIUS_M * 2.0);
+        const normY = (closestBall.y - ghostY) / (BALL_RADIUS_M * 2.0);
+
+        let tangX = -normY;
+        let tangY = normX;
+        if (tangX * dirX + tangY * dirY < 0) {
+          tangX = -tangX;
+          tangY = -tangY;
+        }
+
+        // Apply vertical spin (spinY): follow vs draw
+        let deflectX = tangX + dirX * (spinY * 0.4);
+        let deflectY = tangY + dirY * (spinY * 0.4);
+        const len = Math.hypot(deflectX, deflectY) || 1;
+        deflectX /= len;
+        deflectY /= len;
+
+        return {
+          hasHit: true,
+          ghostX, ghostY,
+          targetBall: closestBall,
+          normX, normY,
+          deflectX, deflectY
+        };
+      }
+
+      return { hasHit: false };
+    }
+
+    // --- Rendering Loop ---
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Slate Felt
+      ctx.fillStyle = "#0a4427";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Wood Rail Borders
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = "#451a03";
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+      // Pockets
+      for (const p of pockets) {
+        ctx.beginPath();
+        ctx.arc(p.x * scale, p.y * scale, p.r * scale, 0, Math.PI * 2);
+        ctx.fillStyle = "#09090b";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#27272a";
+        ctx.stroke();
+      }
+
+      // Trajectory Preview Line & Ghost Ball
+      if (isQuiescent && !balls[0].isSunk) {
+        const pred = predictTrajectory();
+        const cue = balls[0];
+
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+
+        if (pred && pred.hasHit) {
+          // Ray to ghost ball
+          ctx.beginPath();
+          ctx.moveTo(cue.x * scale, cue.y * scale);
+          ctx.lineTo(pred.ghostX * scale, pred.ghostY * scale);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+          ctx.stroke();
+
+          // Ghost Ball
+          ctx.beginPath();
+          ctx.arc(pred.ghostX * scale, pred.ghostY * scale, BALL_RADIUS_M * scale, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.fill();
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+          ctx.stroke();
+
+          // Target ball exit line
+          ctx.beginPath();
+          ctx.moveTo(pred.targetBall.x * scale, pred.targetBall.y * scale);
+          ctx.lineTo(
+            (pred.targetBall.x + pred.normX * 0.5) * scale,
+            (pred.targetBall.y + pred.normY * 0.5) * scale
+          );
+          ctx.strokeStyle = "rgba(244, 63, 94, 0.85)";
+          ctx.stroke();
+
+          // Cue ball deflection line
+          ctx.beginPath();
+          ctx.moveTo(pred.ghostX * scale, pred.ghostY * scale);
+          ctx.lineTo(
+            (pred.ghostX + pred.deflectX * 0.35) * scale,
+            (pred.ghostY + pred.deflectY * 0.35) * scale
+          );
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+          ctx.stroke();
+        } else {
+          // Direct ray forward
+          const endX = cue.x + Math.cos(aimAngle) * 2.0;
+          const endY = cue.y + Math.sin(aimAngle) * 2.0;
+          ctx.beginPath();
+          ctx.moveTo(cue.x * scale, cue.y * scale);
+          ctx.lineTo(endX * scale, endY * scale);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+
+      // Draw Balls
+      for (const b of balls) {
+        if (b.isSunk) continue;
+
+        const bx = b.x * scale;
+        const by = b.y * scale;
+        const br = BALL_RADIUS_M * scale;
+
+        // Shadow
+        ctx.beginPath();
+        ctx.ellipse(bx + 2, by + 3, br * 1.05, br * 0.95, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.fill();
+
+        // Ball Body
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = BALL_COLORS[b.id];
+        ctx.fill();
+
+        // Striped band
+        if (b.id > 8) {
+          ctx.beginPath();
+          ctx.arc(bx, by, br * 0.7, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+        }
+
+        // Ball number circle
+        if (b.id > 0) {
+          ctx.beginPath();
+          ctx.arc(bx, by, br * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+
+          ctx.fillStyle = "#000000";
+          ctx.font = `bold ${Math.max(8, br * 0.5)}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(b.id.toString(), bx, by);
+        }
+
+        // Specular highlight
+        ctx.beginPath();
+        ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.25, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.fill();
+      }
+
+      // Draw Cue Stick
+      if (isQuiescent && !balls[0].isSunk) {
+        const cue = balls[0];
+        const dirX = Math.cos(aimAngle);
+        const dirY = Math.sin(aimAngle);
+
+        const pullOffset = pullTension * 70 + (BALL_RADIUS_M * scale + 6);
+        const startX = cue.x * scale - dirX * pullOffset;
+        const startY = cue.y * scale - dirY * pullOffset;
+        const endX = startX - dirX * 220;
+        const endY = startY - dirY * 220;
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#d97706";
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX - dirX * 12, startY - dirY * 12);
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#38bdf8";
+        ctx.stroke();
+      }
+    }
+
+    function updateStatusBar() {
+      const remaining = balls.filter(b => b.id > 0 && !b.isSunk).length;
+      document.getElementById("balls-left").textContent = remaining;
+    }
+
+    // --- Game Loop ---
+    let lastTime = performance.now();
+    function loop(currentTime) {
+      const dt = Math.min(0.033, (currentTime - lastTime) / 1000);
+      lastTime = currentTime;
+
+      stepSimulation(dt);
+      render();
+
+      requestAnimationFrame(loop);
+    }
+
+    // --- Input & Event Handling ---
+    canvas.addEventListener("pointerdown", (e) => {
+      if (!isQuiescent) return;
+      isAiming = true;
+      updateAimFromPointer(e);
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (isAiming) {
+        updateAimFromPointer(e);
+      }
+    });
+
+    window.addEventListener("pointerup", () => {
+      isAiming = false;
+    });
+
+    function updateAimFromPointer(e) {
+      const rect = canvas.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / scale;
+      const py = (e.clientY - rect.top) / scale;
+      const cue = balls[0];
+      if (cue) {
+        aimAngle = Math.atan2(py - cue.y, px - cue.x);
+      }
+    }
+
+    // Fine Aim Buttons
+    document.getElementById("fine-left").addEventListener("click", () => {
+      aimAngle -= (0.05 * Math.PI / 180);
+    });
+    document.getElementById("fine-right").addEventListener("click", () => {
+      aimAngle += (0.05 * Math.PI / 180);
+    });
+
+    // Cue Slider Pull
+    const cueSlider = document.getElementById("cue-slider-container");
+    const cueFill = document.getElementById("cue-slider-fill");
+    const cueThumb = document.getElementById("cue-slider-thumb");
+
+    cueSlider.addEventListener("pointerdown", (e) => {
+      if (!isQuiescent) return;
+      isPulling = true;
+      updateSlider(e);
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (isPulling) updateSlider(e);
+    });
+    window.addEventListener("pointerup", () => {
+      if (isPulling) {
+        isPulling = false;
+        if (pullTension > 0.05) {
+          executeStrike(pullTension * 6.0);
+        }
+        pullTension = 0.0;
+        cueFill.style.height = "0%";
+        cueThumb.style.bottom = "0%";
+      }
+    });
+
+    function updateSlider(e) {
+      const rect = cueSlider.getBoundingClientRect();
+      const clientY = e.clientY;
+      const trackHeight = rect.height - 40;
+      let ratio = (rect.bottom - 20 - clientY) / trackHeight;
+      ratio = Math.max(0, Math.min(1, ratio));
+      pullTension = ratio;
+      cueFill.style.height = `${ratio * 100}%`;
+      cueThumb.style.bottom = `${ratio * 100}%`;
+    }
+
+    function executeStrike(power) {
+      const cue = balls[0];
+      if (!cue || cue.isSunk) return;
+
+      audio.init();
+      audio.playImpact(power / 4.0);
+
+      cue.vx = Math.cos(aimAngle) * power;
+      cue.vy = Math.sin(aimAngle) * power;
+      cue.state = "sliding";
+      cue.transSpeed = cue.speed * (5.0 / 7.0);
+
+      isQuiescent = false;
+    }
+
+    // Spin HUD Interaction
+    const spinBall = document.getElementById("spin-ball");
+    const spinTip = document.getElementById("spin-tip");
+    let isSettingSpin = false;
+
+    spinBall.addEventListener("pointerdown", (e) => {
+      isSettingSpin = true;
+      updateSpin(e);
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (isSettingSpin) updateSpin(e);
+    });
+    window.addEventListener("pointerup", () => {
+      isSettingSpin = false;
+    });
+
+    function updateSpin(e) {
+      const rect = spinBall.getBoundingClientRect();
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.5;
+      let dx = (e.clientX - cx) / (rect.width * 0.5);
+      let dy = (e.clientY - cy) / (rect.height * 0.5);
+      const len = Math.hypot(dx, dy);
+      if (len > 1.0) {
+        dx /= len;
+        dy /= len;
+      }
+      spinX = dx;
+      spinY = -dy; // Up is follow (+)
+      spinTip.style.left = `${50 + dx * 40}%`;
+      spinTip.style.top = `${50 + dy * 40}%`;
+    }
+
+    // Header buttons
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      resetRack();
+    });
+
+    document.getElementById("btn-ask-puddin").addEventListener("click", () => {
+      const cue = balls[0];
+      const pred = predictTrajectory();
+      if (pred && pred.hasHit) {
+        setCoachDialogue("Watch the tangent off that cut angle, son! Let's send it toward the side pocket. Soft hands.");
+      } else {
+        setCoachDialogue("Take your time, son! Plan your angles carefully, the shot reveals itself.");
+      }
+    });
+
+    // Emotes Drawer
+    const emoteDrawer = document.getElementById("emote-drawer");
+    document.getElementById("btn-emotes").addEventListener("click", () => {
+      emoteDrawer.style.display = emoteDrawer.style.display === "flex" ? "none" : "flex";
+    });
+
+    document.querySelectorAll(".emote-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const type = card.dataset.emote;
+        if (type === "nod") {
+          setCoachDialogue("Coach Puddin nods with quiet approval. 'Stroke it clean, son.'");
+        } else if (type === "ball9") {
+          setCoachDialogue("Coach Puddin holds high the golden 9-ball with a proud grin!");
+        } else if (type === "angle") {
+          setCoachDialogue("Coach Puddin adjusts his wire glasses and winks. 'Every angle is an open door.'");
+        }
+        emoteDrawer.style.display = "none";
+      });
+    });
+
+    // Window Resize
+    window.addEventListener("resize", () => {
+      initTableDimensions();
+    });
+
+    // Initialize
+    initTableDimensions();
+    resetRack();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "characterId": "coach_puddin",
+  "name": "Coach Puddin",
+  "title": "Master of the Felt",
+  "appearance": {
+    "age": "Elderly",
+    "hair": "Silver",
+    "accessories": "Wire-rimmed glasses, upright pool cue, cue/billiard ball",
+    "attire": "Navy and grey patterned Fair Isle knit sweater over dark collared shirt"
+  },
+  "personality": {
+    "tone": "Warm, reassuring, wise, encouraging",
+    "catchphrases": [
+      "Dust it off, son!",
+      "Every wall is an open door if you hit it right.",
+      "The shot reveals itself.",
+      "That's how you let the cue stick do the talking."
+    ]
+  },
+  "emoteStates": [
+    "IDLE_WISE",
+    "AIM_ADVICE",
+    "GREAT_SHOT",
+    "SCRATCH_CONSOLING",
+    "HARD_BANK_CHEER"
+  ]
+}
