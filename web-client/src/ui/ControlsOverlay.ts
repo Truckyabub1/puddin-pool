@@ -23,12 +23,27 @@ export class ControlsOverlay {
   private angleDisplay: HTMLElement;
   private gameModeSelect: HTMLSelectElement;
   private tableSelect: HTMLSelectElement;
+  private scoreDisplay: HTMLElement;
   private turnDisplay: HTMLElement;
   private foulDisplay: HTMLElement;
   private bihBadge: HTMLElement;
 
+  private pushoutModal: HTMLElement;
+  private pushoutDesc: HTMLElement;
+  private btnPushoutAccept: HTMLButtonElement;
+  private btnPushoutPass: HTMLButtonElement;
+
+  private victoryModal: HTMLElement;
+  private victoryTitle: HTMLElement;
+  private victorySub: HTMLElement;
+  private modalScoreP1: HTMLElement;
+  private modalScoreP2: HTMLElement;
+  private btnNextRack: HTMLButtonElement;
+
   public onAimAngleChanged?: (angleRad: number) => void;
   public onPushOutCalled?: () => void;
+  public onPushOutResponseResolved?: (accept: boolean) => void;
+  public onNextRackRequested?: () => void;
   public onRerackRequested?: () => void;
   public onGameModeChanged?: (mode: string) => void;
   public onTableSizeChanged?: (lengthMeters: number, widthMeters: number) => void;
@@ -62,6 +77,7 @@ export class ControlsOverlay {
 
           <!-- WPA Match & Turn Tracker -->
           <div class="match-tracker-chip">
+            <span id="score-display" class="score-pill">P1: 0 | P2: 0</span>
             <span id="turn-display" class="turn-text">P1 SHOOTING</span>
             <span id="foul-display" class="foul-pill">Fouls: P1:0 | P2:0</span>
             <span id="bih-badge" class="bih-badge hidden">BALL IN HAND</span>
@@ -80,6 +96,38 @@ export class ControlsOverlay {
 
             <button id="btn-install-app" class="nav-btn" style="background: rgba(16, 185, 129, 0.85); border-color: #34d399;" title="Install Puddin's Pool App to Device">📲 App</button>
             <button id="btn-rerack" class="nav-btn">🔄 Rack</button>
+          </div>
+        </div>
+
+        <!-- Push-Out Decision Modal (WPA 9.4) -->
+        <div id="pushout-modal" class="pushout-modal-backdrop hidden">
+          <div class="pushout-modal-card">
+            <div class="pushout-modal-header">
+              <span class="pushout-icon">📢</span>
+              <div>
+                <h3 class="pushout-title">Push-Out Option</h3>
+                <p id="pushout-desc" class="pushout-desc">Opponent played a Push-Out. Choose your shot option:</p>
+              </div>
+            </div>
+            <div class="pushout-actions">
+              <button id="btn-pushout-accept" class="modal-primary-btn">Accept & Shoot</button>
+              <button id="btn-pushout-pass" class="modal-secondary-btn">Pass Back to Shooter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Victory / Rack Won Modal -->
+        <div id="victory-modal" class="victory-modal-backdrop hidden">
+          <div class="victory-modal-card">
+            <div class="victory-trophy">🏆</div>
+            <h2 id="victory-title" class="victory-title">PLAYER 1 WINS THE RACK!</h2>
+            <p id="victory-sub" class="victory-sub">9-Ball Pocketed Legally</p>
+            <div class="victory-score-display">
+              <span id="modal-score-p1" class="victory-score-num">P1: 1</span>
+              <span class="victory-score-sep">-</span>
+              <span id="modal-score-p2" class="victory-score-num">P2: 0</span>
+            </div>
+            <button id="btn-next-rack" class="modal-primary-btn">▶ Next Rack (Winner Breaks)</button>
           </div>
         </div>
 
@@ -159,14 +207,56 @@ export class ControlsOverlay {
     this.angleDisplay = this.container.querySelector('#angle-display') as HTMLElement;
     this.gameModeSelect = this.container.querySelector('#mode-select') as HTMLSelectElement;
     this.tableSelect = this.container.querySelector('#table-select') as HTMLSelectElement;
+    this.scoreDisplay = this.container.querySelector('#score-display') as HTMLElement;
     this.turnDisplay = this.container.querySelector('#turn-display') as HTMLElement;
     this.foulDisplay = this.container.querySelector('#foul-display') as HTMLElement;
     this.bihBadge = this.container.querySelector('#bih-badge') as HTMLElement;
+
+    this.pushoutModal = this.container.querySelector('#pushout-modal') as HTMLElement;
+    this.pushoutDesc = this.container.querySelector('#pushout-desc') as HTMLElement;
+    this.btnPushoutAccept = this.container.querySelector('#btn-pushout-accept') as HTMLButtonElement;
+    this.btnPushoutPass = this.container.querySelector('#btn-pushout-pass') as HTMLButtonElement;
+
+    this.victoryModal = this.container.querySelector('#victory-modal') as HTMLElement;
+    this.victoryTitle = this.container.querySelector('#victory-title') as HTMLElement;
+    this.victorySub = this.container.querySelector('#victory-sub') as HTMLElement;
+    this.modalScoreP1 = this.container.querySelector('#modal-score-p1') as HTMLElement;
+    this.modalScoreP2 = this.container.querySelector('#modal-score-p2') as HTMLElement;
+    this.btnNextRack = this.container.querySelector('#btn-next-rack') as HTMLButtonElement;
 
     this.setupEvents();
   }
 
   private setupEvents(): void {
+    // Push-Out Modal Responses (WPA 9.4)
+    this.btnPushoutAccept.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.triggerHaptic(ImpactStyle.Medium);
+      this.hidePushOutModal();
+      if (this.onPushOutResponseResolved) {
+        this.onPushOutResponseResolved(true);
+      }
+    });
+
+    this.btnPushoutPass.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.triggerHaptic(ImpactStyle.Medium);
+      this.hidePushOutModal();
+      if (this.onPushOutResponseResolved) {
+        this.onPushOutResponseResolved(false);
+      }
+    });
+
+    // Victory Modal Next Rack
+    this.btnNextRack.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.triggerHaptic(ImpactStyle.Medium);
+      this.hideVictoryModal();
+      if (this.onNextRackRequested) {
+        this.onNextRackRequested();
+      }
+    });
+
     // Table Specification Selector
     this.tableSelect.addEventListener('change', () => {
       if (this.onTableSizeChanged) {
@@ -341,6 +431,35 @@ export class ControlsOverlay {
     } else {
       this.bihBadge.classList.add('hidden');
     }
+  }
+
+  public setScore(p1: number, p2: number): void {
+    if (this.scoreDisplay) {
+      this.scoreDisplay.textContent = `P1: ${p1} | P2: ${p2}`;
+    }
+  }
+
+  public showPushOutModal(shooterName: string, opponentName: string): void {
+    if (this.pushoutDesc) {
+      this.pushoutDesc.textContent = `${shooterName} played a Push-Out. ${opponentName}, choose whether to shoot from this position or pass the shot back:`;
+    }
+    this.pushoutModal?.classList.remove('hidden');
+  }
+
+  public hidePushOutModal(): void {
+    this.pushoutModal?.classList.add('hidden');
+  }
+
+  public showVictoryModal(winnerTitle: string, subText: string, p1Score: number, p2Score: number): void {
+    if (this.victoryTitle) this.victoryTitle.textContent = winnerTitle;
+    if (this.victorySub) this.victorySub.textContent = subText;
+    if (this.modalScoreP1) this.modalScoreP1.textContent = `P1: ${p1Score}`;
+    if (this.modalScoreP2) this.modalScoreP2.textContent = `P2: ${p2Score}`;
+    this.victoryModal?.classList.remove('hidden');
+  }
+
+  public hideVictoryModal(): void {
+    this.victoryModal?.classList.add('hidden');
   }
 
   private async triggerHaptic(style: ImpactStyle): Promise<void> {

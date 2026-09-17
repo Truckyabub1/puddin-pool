@@ -44,6 +44,9 @@ class PuddinPoolApp {
   private activeLegendRec: LegendRecommendation | null = null;
   private currentCueTension: number = 0.25;
   private lastTimestamp: number = 0;
+  private p1Score: number = 0;
+  private p2Score: number = 0;
+  private isRackWon: boolean = false;
 
   constructor() {
     this.canvas = document.getElementById('table-canvas') as HTMLCanvasElement;
@@ -126,6 +129,7 @@ class PuddinPoolApp {
       this.rules.reset();
       this.isBallInHand = false;
       this.isPushOutPending = false;
+      this.isRackWon = false;
       this.activeLegendRec = null;
       this.coachAvatar.setLockLineVisible(false);
       this.coachAvatar.setEmote(PuddinEmoteState.IDLE, "Fresh rack set tight! Player 1 breaks.");
@@ -133,16 +137,42 @@ class PuddinPoolApp {
       this.updateTrajectory();
     };
 
+    this.controls.onNextRackRequested = () => {
+      this.physics.resetRack(this.physics.currentMode);
+      this.rules.reset();
+      this.isBallInHand = false;
+      this.isPushOutPending = false;
+      this.isRackWon = false;
+      this.activeLegendRec = null;
+      this.coachAvatar.setLockLineVisible(false);
+      const breaker = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'Player 1' : 'Player 2';
+      this.coachAvatar.setEmote(PuddinEmoteState.IDLE, `New rack set tight! ${breaker} has the break.`);
+      this.updateWpaHud();
+      this.updateTrajectory();
+    };
+
     this.controls.onPushOutCalled = () => {
-      if (!this.rules.getPushOutAvailable() || !this.physics.isQuiescent) return;
+      if (!this.rules.getPushOutAvailable() || !this.physics.isQuiescent || this.isRackWon) return;
       this.isPushOutPending = true;
       this.coachAvatar.setEmote(PuddinEmoteState.ADVICE, "Push-Out announced! Normal lowest-ball and cushion rules waived for this shot.");
       this.controls.setPushOutVisible(false);
     };
 
+    this.controls.onPushOutResponseResolved = (accept: boolean) => {
+      this.rules.resolvePushOutResponse(accept);
+      const curP = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'Player 1' : 'Player 2';
+      if (accept) {
+        this.coachAvatar.speak(`${curP} accepted the shot! Table is live.`);
+      } else {
+        this.coachAvatar.speak(`Shot passed back! ${curP} must take the shot.`);
+      }
+      this.updateWpaHud();
+      this.updateTrajectory();
+    };
+
     // 2. StrokeController Bindings
     this.strokeController.onStrokeFired = (evt) => {
-      if (!this.physics.isQuiescent) return;
+      if (!this.physics.isQuiescent || this.isRackWon) return;
       this.isBallInHand = false;
       this.isAwaitingBallPlacement = false;
       this.isDraggingCueBall = false;
@@ -179,7 +209,7 @@ class PuddinPoolApp {
     };
 
     this.touchOverlay.onStrokeFired = (powerNorm) => {
-      if (!this.physics.isQuiescent) return;
+      if (!this.physics.isQuiescent || this.isRackWon) return;
       this.isBallInHand = false;
       this.isAwaitingBallPlacement = false;
       this.isDraggingCueBall = false;
@@ -230,11 +260,13 @@ class PuddinPoolApp {
       const tableX = (px - this.tableRenderer.offsetX) / this.tableRenderer.scale;
       const tableY = (py - this.tableRenderer.offsetY) / this.tableRenderer.scale;
 
-      if (this.isBallInHand) {
-        if (this.isAwaitingBallPlacement) {
+      if (this.isBallInHand || this.physics.isBreakShot) {
+        if (this.isBallInHand && this.isAwaitingBallPlacement) {
           // First tap/click places cue ball and enables aiming
           const minX = this.physics.BALL_RADIUS * 1.5;
-          const maxX = this.physics.TABLE_WIDTH - this.physics.BALL_RADIUS * 1.5;
+          const maxX = this.physics.isBreakShot
+            ? (this.physics.TABLE_WIDTH * 0.25 - this.physics.BALL_RADIUS)
+            : (this.physics.TABLE_WIDTH - this.physics.BALL_RADIUS * 1.5);
           const minY = this.physics.BALL_RADIUS * 1.5;
           const maxY = this.physics.TABLE_HEIGHT - this.physics.BALL_RADIUS * 1.5;
           const clampedX = Math.max(minX, Math.min(maxX, tableX));
@@ -279,7 +311,7 @@ class PuddinPoolApp {
       const tableX = (px - this.tableRenderer.offsetX) / this.tableRenderer.scale;
       const tableY = (py - this.tableRenderer.offsetY) / this.tableRenderer.scale;
 
-      if (this.isBallInHand && this.pointerDownTablePos && !this.isDraggingCueBall) {
+      if ((this.isBallInHand || this.physics.isBreakShot) && this.pointerDownTablePos && !this.isDraggingCueBall) {
         const moveDist = Math.hypot(tableX - this.pointerDownTablePos.x, tableY - this.pointerDownTablePos.y);
         if (moveDist > this.physics.BALL_RADIUS * 0.4) {
           this.isDraggingCueBall = true;
@@ -292,7 +324,9 @@ class PuddinPoolApp {
 
       if (this.isDraggingCueBall) {
         const minX = this.physics.BALL_RADIUS * 1.5;
-        const maxX = this.physics.TABLE_WIDTH - this.physics.BALL_RADIUS * 1.5;
+        const maxX = this.physics.isBreakShot
+          ? (this.physics.TABLE_WIDTH * 0.25 - this.physics.BALL_RADIUS)
+          : (this.physics.TABLE_WIDTH - this.physics.BALL_RADIUS * 1.5);
         const minY = this.physics.BALL_RADIUS * 1.5;
         const maxY = this.physics.TABLE_HEIGHT - this.physics.BALL_RADIUS * 1.5;
         const clampedX = Math.max(minX, Math.min(maxX, tableX));
@@ -378,6 +412,7 @@ class PuddinPoolApp {
       isPushOutCall: this.isPushOutPending,
       firstContactBallId: this.physics.firstContactBallId,
       railHitAfterContact: this.physics.railHitAfterContact,
+      objectBallsHitRailsCount: this.physics.objectBallsHitRailIds.size,
       ballsPocketed: this.physics.ballsPocketedThisShot,
       cueScratch: this.physics.cueScratchThisShot,
     }, lowest, unsunk);
@@ -398,7 +433,29 @@ class PuddinPoolApp {
       }
     }
 
+    if (result.gameStatus === NineBallGameStatus.PushOutPendingResponse) {
+      const shooterName = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'Player 1' : 'Player 2';
+      const opponentName = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'Player 2' : 'Player 1';
+      this.controls.showPushOutModal(shooterName, opponentName);
+    }
+
     const isWin = (result.gameStatus === NineBallGameStatus.Player1Win || result.gameStatus === NineBallGameStatus.Player2Win);
+    if (isWin) {
+      this.isRackWon = true;
+      const winner = (result.gameStatus === NineBallGameStatus.Player1Win) ? NineBallPlayer.Player1 : NineBallPlayer.Player2;
+      if (winner === NineBallPlayer.Player1) {
+        this.p1Score++;
+      } else {
+        this.p2Score++;
+      }
+      this.controls.setScore(this.p1Score, this.p2Score);
+      const winTitle = (winner === NineBallPlayer.Player1) ? 'PLAYER 1 WINS THE RACK!' : 'PLAYER 2 WINS THE RACK!';
+      const winSub = wasBreak
+        ? 'GOLDEN BREAK ON THE BREAK SHOT!'
+        : (result.foulType === NineBallFoulType.ThreeConsecutiveFouls ? 'Opponent 3 Consecutive Fouls Forfeit' : '9-Ball Sunk Legally');
+      this.controls.showVictoryModal(winTitle, winSub, this.p1Score, this.p2Score);
+    }
+
     const isLoss = !result.isLegal && (
       result.foulType === NineBallFoulType.EarlyEightBall ||
       result.foulType === NineBallFoulType.EightBallScratch ||
@@ -467,14 +524,16 @@ class PuddinPoolApp {
     this.tableRenderer.drawTrajectory(this.currentTrajectory, this.physics.BALL_RADIUS);
     this.tableRenderer.drawContactAmbientOcclusion(this.physics.balls, this.physics.BALL_RADIUS);
 
+    const lowestBallId = (this.physics.isQuiescent && !this.isRackWon) ? this.physics.getLowestBall() : undefined;
     this.ballRenderer.drawBalls(
       this.physics.balls,
       this.physics.BALL_RADIUS,
       this.tableRenderer.scale,
-      this.isBallInHand
+      this.isBallInHand,
+      lowestBallId
     );
 
-    if (this.physics.isQuiescent) {
+    if (this.physics.isQuiescent && !this.isRackWon) {
       this.ballRenderer.drawCueStick(
         this.physics.balls[0],
         this.aimAngle,

@@ -37,7 +37,7 @@ export class BallRenderer {
     this.ctx = ctx;
   }
 
-  public drawBalls(balls: BallState[], ballRadiusMeters: number, scale: number, isBallInHand: boolean): void {
+  public drawBalls(balls: BallState[], ballRadiusMeters: number, scale: number, isBallInHand: boolean, lowestBallId?: number): void {
     const ctx = this.ctx;
     const r = ballRadiusMeters * scale;
 
@@ -54,6 +54,18 @@ export class BallRenderer {
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.arc(bx, by, r * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Lowest active ball target indicator for 9-ball
+      if (lowestBallId !== undefined && b.id === lowestBallId && lowestBallId > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(bx, by, r * 1.35, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }

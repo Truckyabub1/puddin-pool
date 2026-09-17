@@ -24,6 +24,7 @@ export interface TrajectoryPreview {
   deflectY: number;
   cuePoints: { x: number; y: number }[];
   targetPoints: { x: number; y: number }[];
+  isLegalTarget?: boolean;
 }
 
 export interface LegendRecommendation {
@@ -65,6 +66,7 @@ export class WebBilliardsEngine {
   public ballsPocketedThisShot: number[] = [];
   public cueScratchThisShot: boolean = false;
   public isBreakShot: boolean = true;
+  public objectBallsHitRailIds: Set<number> = new Set<number>();
 
   constructor() {
     this.initPockets();
@@ -190,6 +192,7 @@ export class WebBilliardsEngine {
     this.railHitAfterContact = false;
     this.ballsPocketedThisShot = [];
     this.cueScratchThisShot = false;
+    this.objectBallsHitRailIds.clear();
   }
 
   public strikeCueBall(
@@ -294,25 +297,44 @@ export class WebBilliardsEngine {
     b9.wz = 0;
     b9.state = "stationary";
 
-    let spotX = this.TABLE_WIDTH * 0.70;
+    const baseSpotX = this.TABLE_WIDTH * 0.70;
     const spotY = this.TABLE_HEIGHT * 0.50;
-    const d = this.BALL_RADIUS * 2.0;
+    const d = this.BALL_RADIUS * 2.05;
+    const maxFootX = this.TABLE_WIDTH - this.BALL_RADIUS * 1.5;
+    const minHeadX = this.BALL_RADIUS * 1.5;
 
-    let occupied = true;
-    while (occupied) {
-      occupied = false;
+    let testX = baseSpotX;
+    let direction = 1; // 1 = toward foot rail, -1 = toward head rail
+
+    const isSpotOccupied = (x: number) => {
       for (const b of this.balls) {
         if (b.id !== 9 && !b.isSunk) {
-          if (Math.hypot(b.x - spotX, b.y - spotY) < d) {
-            occupied = true;
-            spotX += d;
-            break;
+          if (Math.hypot(b.x - x, b.y - spotY) < d) {
+            return true;
           }
+        }
+      }
+      return false;
+    };
+
+    while (isSpotOccupied(testX)) {
+      if (direction === 1) {
+        testX += d;
+        if (testX > maxFootX) {
+          direction = -1;
+          testX = baseSpotX - d;
+        }
+      } else {
+        testX -= d;
+        if (testX < minHeadX) {
+          const safe = this.findValidPlacement(baseSpotX, spotY);
+          testX = safe ? safe.x : baseSpotX;
+          break;
         }
       }
     }
 
-    b9.x = spotX;
+    b9.x = testX;
     b9.y = spotY;
   }
 
@@ -537,6 +559,9 @@ export class WebBilliardsEngine {
       if (hitCushion) {
         b.state = "sliding";
         onCushion?.();
+        if (b.id > 0) {
+          this.objectBallsHitRailIds.add(b.id);
+        }
         if (this.firstContactBallId !== -1) {
           this.railHitAfterContact = true;
         }
@@ -777,6 +802,9 @@ export class WebBilliardsEngine {
       const deflectY = (deflectEnd.y - ghostY) || tangY;
       const dLen = Math.hypot(deflectX, deflectY) || 1;
 
+      const lowestBall = this.getLowestBall();
+      const isLegalTarget = (this.currentMode === '9ball') ? (closestBall.id === lowestBall) : true;
+
       return {
         hasHit: true,
         ghostX,
@@ -788,6 +816,7 @@ export class WebBilliardsEngine {
         deflectY: deflectY / dLen,
         cuePoints,
         targetPoints,
+        isLegalTarget,
       };
     }
 

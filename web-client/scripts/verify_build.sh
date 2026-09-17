@@ -9,14 +9,16 @@ echo "================================================================="
 echo "  PUDDIN'S POOL CI/CD VERIFICATION & AUTOMATED BUILD TEST"
 echo "================================================================="
 
-# 1. Run Headless WPA 8-Ball, 9-Ball & Physics Impact Dynamics C++ Test Suite
-echo -e "\n[STEP 1/3] Running Headless C++ Rules & Physics Impact Dynamics Tests..."
+# 1. Run Headless WPA 8-Ball, 9-Ball & Physics Impact Dynamics Test Suites
+echo -e "\n[STEP 1/3] Running Headless C++ & TypeScript Tournament Rules Tests..."
 "${PROJECT_ROOT}/build/bin/nine_ball_rules_test"
 "${PROJECT_ROOT}/build/bin/official_rules_test"
 "${PROJECT_ROOT}/build/bin/physics_dynamics_test"
 "${PROJECT_ROOT}/build/bin/test_impact_reactions"
 "${PROJECT_ROOT}/build/bin/test_friction_decay"
-echo "✓ All C++ Tournament Rules, Impact, & Friction Decay Tests Passed!"
+cd "${CLIENT_DIR}"
+npx tsx "${SCRIPT_DIR}/test_nine_ball_rules.ts"
+echo "✓ All C++ & TypeScript Tournament Rules, Impact, & Friction Decay Tests Passed!"
 
 # 2. Compile Web Client Production Bundle
 echo -e "\n[STEP 2/3] Compiling TypeScript & Bundling via Vite..."

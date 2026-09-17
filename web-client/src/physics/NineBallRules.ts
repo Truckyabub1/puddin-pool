@@ -16,6 +16,7 @@ export enum NineBallFoulType {
   CueBallScratch = 'CueBallScratch',
   WrongFirstContact = 'WrongFirstContact',
   NoRailAfterContact = 'NoRailAfterContact',
+  IllegalBreak = 'IllegalBreak',
   ThreeConsecutiveFouls = 'ThreeConsecutiveFouls',
   EarlyEightBall = 'EarlyEightBall',
   EightBallScratch = 'EightBallScratch',
@@ -34,6 +35,7 @@ export interface NineBallShotInput {
   isPushOutCall: boolean;
   firstContactBallId: number;
   railHitAfterContact: boolean;
+  objectBallsHitRailsCount?: number;
   ballsPocketed: number[];
   cueScratch: boolean;
 }
@@ -185,6 +187,12 @@ export class NineBallRules {
       foul = NineBallFoulType.CueBallScratch;
     } else if (shot.firstContactBallId !== lowestBallOnTable) {
       foul = NineBallFoulType.WrongFirstContact;
+    } else if (shot.isBreakShot) {
+      // Official WPA 9.2: Pocket an object ball OR drive at least 4 numbered balls to cushion rails
+      const railCount = shot.objectBallsHitRailsCount !== undefined ? shot.objectBallsHitRailsCount : (shot.railHitAfterContact ? 4 : 0);
+      if (shot.ballsPocketed.length === 0 && railCount < 4) {
+        foul = NineBallFoulType.IllegalBreak;
+      }
     } else if (shot.ballsPocketed.length === 0 && !shot.railHitAfterContact) {
       foul = NineBallFoulType.NoRailAfterContact;
     }
@@ -216,6 +224,8 @@ export class NineBallRules {
         msg = "Coach Puddin: 'Careful, son! That is TWO consecutive fouls! One more foul forfeits the rack.'";
       } else if (foul === NineBallFoulType.WrongFirstContact) {
         msg = `Coach Puddin: 'Foul! Lowest ball was the ${lowestBallOnTable}-ball. You must strike it first.'`;
+      } else if (foul === NineBallFoulType.IllegalBreak) {
+        msg = "Coach Puddin: 'Illegal break! A dry break requires at least 4 object balls to hit a rail. Opponent has Ball-in-Hand.'";
       } else if (foul === NineBallFoulType.NoRailAfterContact) {
         msg = "Coach Puddin: 'Foul! After contact, at least one ball must reach a cushion rail or drop in a pocket.'";
       }

@@ -303,11 +303,15 @@ export class TableRenderer {
   public drawTrajectory(traj: TrajectoryPreview | null, ballRadiusMeters: number): void {
     if (!traj) return;
     const ctx = this.ctx;
+    const isIllegal = traj.hasHit && traj.isLegalTarget === false;
+    const laserColor = isIllegal ? '#ef4444' : '#38bdf8';
+    const postLaserColor = isIllegal ? 'rgba(239, 68, 68, 0.65)' : 'rgba(56, 189, 248, 0.65)';
+    const targetColor = isIllegal ? '#ef4444' : '#f59e0b';
 
     // Laser aiming line and post-impact curve / cushion bank
     if (traj.cuePoints.length >= 2) {
       ctx.save();
-      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeStyle = laserColor;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -316,7 +320,7 @@ export class TableRenderer {
       ctx.stroke();
 
       if (traj.cuePoints.length > 2) {
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+        ctx.strokeStyle = postLaserColor;
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 3]);
         ctx.beginPath();
@@ -337,13 +341,13 @@ export class TableRenderer {
       const gr = ballRadiusMeters * this.scale;
 
       // Outer anti-aliasing halo
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.strokeStyle = isIllegal ? 'rgba(239, 68, 68, 0.45)' : 'rgba(255, 255, 255, 0.25)';
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(gx, gy, gr, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = isIllegal ? '#ef4444' : '#ffffff';
       ctx.lineWidth = 1.8;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -351,7 +355,7 @@ export class TableRenderer {
       ctx.stroke();
 
       if (traj.targetPoints.length >= 2) {
-        ctx.strokeStyle = '#f59e0b';
+        ctx.strokeStyle = targetColor;
         ctx.lineWidth = 2.5;
         ctx.setLineDash([]);
         ctx.beginPath();
