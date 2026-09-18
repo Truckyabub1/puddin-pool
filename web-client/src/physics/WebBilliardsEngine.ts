@@ -82,15 +82,16 @@ export class WebBilliardsEngine {
   }
 
   private initPockets(): void {
-    const cornerOffset = 0.042;
-    const cornerDropR = 0.058;
-    const sideDropR = 0.054;
+    const cornerOffset = 0.036;
+    const cornerDropR = 0.048;
+    const sideDropR = 0.045;
+    const sideOffset = 0.008;
     this.pockets = [
       { x: cornerOffset, y: cornerOffset, r: cornerDropR, throat: 0.1143 },
-      { x: this.TABLE_WIDTH * 0.5, y: 0.018, r: sideDropR, throat: 0.1270 },
+      { x: this.TABLE_WIDTH * 0.5, y: sideOffset, r: sideDropR, throat: 0.1270 },
       { x: this.TABLE_WIDTH - cornerOffset, y: cornerOffset, r: cornerDropR, throat: 0.1143 },
       { x: cornerOffset, y: this.TABLE_HEIGHT - cornerOffset, r: cornerDropR, throat: 0.1143 },
-      { x: this.TABLE_WIDTH * 0.5, y: this.TABLE_HEIGHT - 0.018, r: sideDropR, throat: 0.1270 },
+      { x: this.TABLE_WIDTH * 0.5, y: this.TABLE_HEIGHT - sideOffset, r: sideDropR, throat: 0.1270 },
       { x: this.TABLE_WIDTH - cornerOffset, y: this.TABLE_HEIGHT - cornerOffset, r: cornerDropR, throat: 0.1143 },
     ];
   }
@@ -508,8 +509,8 @@ export class WebBilliardsEngine {
       for (const p of this.pockets) {
         const dist = Math.hypot(b.x - p.x, b.y - p.y);
         if (dist < p.r) {
-          // Fast undercut rattle rejection
-          if (spd > 5.8 && dist > p.r * 0.65) {
+          // Realistic pocket facing rattle rejection
+          if (spd > 3.6 && dist > p.r * 0.60) {
             b.vx = -b.vx * 0.45;
             b.vy = -b.vy * 0.45;
             continue;

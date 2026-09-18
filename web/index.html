@@ -717,16 +717,18 @@
 
       scale = w / TABLE_WIDTH_M;
 
-      // Pockets positions
+      // Pockets positions - Realistic WPA Regulation Pro Dimensions
       pockets.length = 0;
-      const cornerR = 0.075;
-      const midR = 0.065;
-      pockets.push({ x: cornerR, y: cornerR, r: cornerR });
-      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: 0.03, r: midR });
-      pockets.push({ x: TABLE_WIDTH_M - cornerR, y: cornerR, r: cornerR });
-      pockets.push({ x: cornerR, y: TABLE_HEIGHT_M - cornerR, r: cornerR });
-      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: TABLE_HEIGHT_M - 0.03, r: midR });
-      pockets.push({ x: TABLE_WIDTH_M - cornerR, y: TABLE_HEIGHT_M - cornerR, r: cornerR });
+      const cornerOffset = 0.036;
+      const cornerDropR = 0.048;
+      const sideDropR = 0.045;
+      const sideOffset = 0.008;
+      pockets.push({ x: cornerOffset, y: cornerOffset, r: cornerDropR });
+      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: sideOffset, r: sideDropR });
+      pockets.push({ x: TABLE_WIDTH_M - cornerOffset, y: cornerOffset, r: cornerDropR });
+      pockets.push({ x: cornerOffset, y: TABLE_HEIGHT_M - cornerOffset, r: cornerDropR });
+      pockets.push({ x: TABLE_WIDTH_M * 0.5, y: TABLE_HEIGHT_M - sideOffset, r: sideDropR });
+      pockets.push({ x: TABLE_WIDTH_M - cornerOffset, y: TABLE_HEIGHT_M - cornerOffset, r: cornerDropR });
     }
 
     function resetRack(mode = currentMode) {
@@ -909,12 +911,21 @@
         }
       }
 
-      // 2. Pocket capture
+      // 2. Pocket capture with realistic jaw rattle rejection
       for (const b of balls) {
         if (b.isSunk) continue;
+        const spd = Math.hypot(b.vx, b.vy);
         for (const p of pockets) {
           const dist = Math.hypot(b.x - p.x, b.y - p.y);
           if (dist < p.r) {
+            // Realistic pocket facing rattle rejection
+            if (spd > 3.6 && dist > p.r * 0.60) {
+              b.vx = -b.vx * 0.45;
+              b.vy = -b.vy * 0.45;
+              audio.playCushion(spd * 0.5);
+              continue;
+            }
+
             b.isSunk = true;
             b.vx = 0;
             b.vy = 0;
@@ -1141,12 +1152,30 @@
           ctx.restore();
         }
 
+        // 1. Recessed Pocket Drop Well (3D Depth Gradient)
+        const wellGrad = ctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
+        wellGrad.addColorStop(0, "#000000");
+        wellGrad.addColorStop(0.7, "#07090e");
+        wellGrad.addColorStop(0.92, "#111827");
+        wellGrad.addColorStop(1, "#1f2937");
+
+        ctx.fillStyle = wellGrad;
         ctx.beginPath();
         ctx.arc(px, py, pr, 0, Math.PI * 2);
-        ctx.fillStyle = "#09090b";
         ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#27272a";
+
+        // 2. Molded Rubber Pocket Liner Rim
+        ctx.strokeStyle = "#18181b";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 3. Tournament Brass Casting Bezel Ring
+        ctx.strokeStyle = "rgba(217, 119, 6, 0.4)";
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.arc(px, py, pr - 1.2, 0, Math.PI * 2);
         ctx.stroke();
       }
 
