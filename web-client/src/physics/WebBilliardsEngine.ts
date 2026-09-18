@@ -25,6 +25,7 @@ export interface TrajectoryPreview {
   cuePoints: { x: number; y: number }[];
   targetPoints: { x: number; y: number }[];
   isLegalTarget?: boolean;
+  targetPocketIndex?: number;
 }
 
 export interface LegendRecommendation {
@@ -150,8 +151,37 @@ export class WebBilliardsEngine {
           });
         }
       }
+    } else if (mode === '10ball') {
+      // Official 10-Ball Triangle Rack: 1 at apex, 10 in center
+      const tenBallIds = [
+        [1],
+        [2, 3],
+        [4, 10, 5],
+        [6, 7, 8, 9]
+      ];
+
+      for (let row = 0; row < tenBallIds.length; ++row) {
+        const rowBalls = tenBallIds[row];
+        const colX = apexX + row * rowSpacing;
+        const startY = apexY - (rowBalls.length - 1) * d * 0.5;
+        for (let i = 0; i < rowBalls.length; ++i) {
+          this.balls.push({
+            id: rowBalls[i],
+            x: colX,
+            y: startY + i * d,
+            vx: 0,
+            vy: 0,
+            wx: 0,
+            wy: 0,
+            wz: 0,
+            isSunk: false,
+            state: "stationary",
+            rotQuaternion: [0, 0, 0, 1],
+          });
+        }
+      }
     } else {
-      // Official WPA 15-Ball Triangle Rack (8-ball):
+      // Official WPA 15-Ball Triangle Rack (8-ball, straight pool, practice):
       // 8-ball in center (row 2, center), bottom corner balls of opposite groups (Solid 6, Stripe 15).
       const triangleIds = [
         [1],
@@ -728,10 +758,40 @@ export class WebBilliardsEngine {
       const tObjRail = Math.min(tObjX, tObjY);
       if (tObjRail > 0 && tObjRail < objLen) objLen = tObjRail;
 
-      const targetPoints = [
+      // Check if target ball line aims into any pocket (Miniclip pocket capture preview)
+      let targetPocketIndex: number | undefined = undefined;
+      for (let pIdx = 0; pIdx < this.pockets.length; ++pIdx) {
+        const p = this.pockets[pIdx];
+        const vpx = p.x - closestBall.x;
+        const vpy = p.y - closestBall.y;
+        const proj = vpx * objDirX + vpy * objDirY;
+        if (proj > 0 && proj < 1.6) {
+          const perpSq = (vpx * vpx + vpy * vpy) - proj * proj;
+          if (perpSq < (p.r * 1.3) * (p.r * 1.3)) {
+            targetPocketIndex = pIdx;
+            objLen = proj;
+            break;
+          }
+        }
+      }
+
+      const targetPoints: { x: number; y: number }[] = [
         { x: closestBall.x, y: closestBall.y },
         { x: closestBall.x + objDirX * objLen, y: closestBall.y + objDirY * objLen },
       ];
+
+      // If hitting a rail without pocketing, project single cushion bounce bank
+      if (targetPocketIndex === undefined && tObjRail > 0 && tObjRail < 1.2) {
+        let bankDx = objDirX;
+        let bankDy = objDirY;
+        if (Math.abs(tObjRail - tObjX) < 1e-4) bankDx = -bankDx;
+        if (Math.abs(tObjRail - tObjY) < 1e-4) bankDy = -bankDy;
+        const bankDist = 0.35;
+        targetPoints.push({
+          x: targetPoints[1].x + bankDx * bankDist,
+          y: targetPoints[1].y + bankDy * bankDist,
+        });
+      }
 
       // Multi-step physical forward trace of cue ball post-impact
       // Determine sliding vs natural rolling state at moment of collision
@@ -803,7 +863,10 @@ export class WebBilliardsEngine {
       const dLen = Math.hypot(deflectX, deflectY) || 1;
 
       const lowestBall = this.getLowestBall();
-      const isLegalTarget = (this.currentMode === '9ball') ? (closestBall.id === lowestBall) : true;
+      let isLegalTarget = true;
+      if (this.currentMode === '9ball' || this.currentMode === '10ball') {
+        isLegalTarget = (closestBall.id === lowestBall);
+      }
 
       return {
         hasHit: true,
@@ -817,6 +880,7 @@ export class WebBilliardsEngine {
         cuePoints,
         targetPoints,
         isLegalTarget,
+        targetPocketIndex,
       };
     }
 

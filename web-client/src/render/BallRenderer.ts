@@ -58,15 +58,25 @@ export class BallRenderer {
         ctx.restore();
       }
 
-      // Lowest active ball target indicator for 9-ball
+      // Lowest active ball target indicator for 9-ball / 10-ball (Miniclip pulsing target)
       if (lowestBallId !== undefined && b.id === lowestBallId && lowestBallId > 0) {
         ctx.save();
+        const pulse = 1.0 + 0.12 * Math.sin(Date.now() * 0.008);
         ctx.strokeStyle = '#fbbf24';
         ctx.lineWidth = 2.5;
-        ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.arc(bx, by, r * 1.35, 0, Math.PI * 2);
+        ctx.arc(bx, by, r * 1.35 * pulse, 0, Math.PI * 2);
         ctx.stroke();
+
+        // Bouncing Target Arrow Pointer above ball
+        const arrowY = by - r * 1.65 - (pulse - 1.0) * 8;
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(bx, arrowY + 6);
+        ctx.lineTo(bx - 6, arrowY);
+        ctx.lineTo(bx + 6, arrowY);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       }
 
@@ -139,6 +149,11 @@ export class BallRenderer {
     }
   }
 
+  /**
+   * Miniclip Pro 8-Ball iOS Precision Cue Stick Renderer:
+   * Multi-segment tapered hard maple shaft, brass joint collar, Irish linen grip,
+   * blue master chalk tip, rubber bumper, and dynamic felt drop shadow.
+   */
   public drawCueStick(cue: BallState | undefined, aimAngle: number, power: number, scale: number, ballRadiusMeters: number): void {
     if (!cue || cue.isSunk) return;
     const ctx = this.ctx;
@@ -146,29 +161,77 @@ export class BallRenderer {
     const cy = cue.y * scale;
     const r = ballRadiusMeters * scale;
 
-    const pullBack = 12 + power * 28;
+    const pullBack = 12 + power * 65;
     const stickDist = r + pullBack;
-    const tipX = cx - Math.cos(aimAngle) * stickDist;
-    const tipY = cy - Math.sin(aimAngle) * stickDist;
-    const buttX = cx - Math.cos(aimAngle) * (stickDist + 160);
-    const buttY = cy - Math.sin(aimAngle) * (stickDist + 160);
 
     ctx.save();
-    // Tapered Maple Cue Shaft
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(buttX, buttY);
-    ctx.stroke();
+    ctx.translate(cx, cy);
+    ctx.rotate(aimAngle + Math.PI); // Orient stick pointing directly into the cue ball
 
-    // Cue Chalk Tip
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 4;
+    // 1. Soft Ambient Cast Shadow onto Simonis Felt
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - Math.cos(aimAngle) * 4, tipY - Math.sin(aimAngle) * 4);
-    ctx.stroke();
+    ctx.roundRect(stickDist + 4, -3, 230, 6, 3);
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Leather Master Chalk Tip (Cyan Blue)
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    ctx.roundRect(stickDist, -2.5, 4.5, 5, [2, 0, 0, 2]);
+    ctx.fill();
+
+    // 3. Ferrule (Polished Ivory/Phenolic Polymer)
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(stickDist + 4.5, -2.8, 12, 5.6);
+
+    // 4. Tapered Canadian Hard Rock Maple Shaft
+    const shaftGrad = ctx.createLinearGradient(stickDist + 16.5, -3.5, stickDist + 120, 3.5);
+    shaftGrad.addColorStop(0, '#fef08a');
+    shaftGrad.addColorStop(0.5, '#f59e0b');
+    shaftGrad.addColorStop(1, '#d97706');
+    ctx.fillStyle = shaftGrad;
+    ctx.beginPath();
+    ctx.moveTo(stickDist + 16.5, -2.8);
+    ctx.lineTo(stickDist + 120, -4.0);
+    ctx.lineTo(stickDist + 120, 4.0);
+    ctx.lineTo(stickDist + 16.5, 2.8);
+    ctx.closePath();
+    ctx.fill();
+
+    // 5. Polished Brass Joint Collar Accent Ring
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(stickDist + 120, -4.2, 5, 8.4);
+
+    // 6. Pressed Irish Linen Textured Handle Wrap (Midnight Black / Silver Thread)
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(stickDist + 125, -4.2, 70, 8.4);
+    // Subtle grip ring pinstripes
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    for (let s = stickDist + 130; s < stickDist + 195; s += 8) {
+      ctx.beginPath();
+      ctx.moveTo(s, -4.2);
+      ctx.lineTo(s, 4.2);
+      ctx.stroke();
+    }
+
+    // 7. Exotic Rosewood Butt Sleeve with Gold Trim
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(stickDist + 195, -4.4, 38, 8.8);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(stickDist + 210, -4.5, 2.5, 9.0);
+
+    // 8. Molded Synthetic Rubber Bumper Cap
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.roundRect(stickDist + 233, -4.0, 7, 8.0, [0, 4, 4, 0]);
+    ctx.fill();
+
     ctx.restore();
   }
 }

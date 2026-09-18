@@ -247,4 +247,85 @@ export class WebAudioEngine {
     }
     return this.isMuted;
   }
+
+  /**
+   * Miniclip Victory Fanfare Chords Stinger (synthesized celebratory arpeggio)
+   */
+  public playVictoryStinger(): void {
+    if (!this.ctx || !this.masterGain || this.isMuted) return;
+    this.resume();
+
+    const t = this.ctx.currentTime;
+    // C Major arpeggio notes: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1046Hz)
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, i) => {
+      if (!this.ctx || !this.masterGain) return;
+      const noteTime = t + i * 0.11;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, noteTime);
+
+      gain.gain.setValueAtTime(0.001, noteTime);
+      gain.gain.linearRampToValueAtTime(0.35, noteTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0005, noteTime + 0.55);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.56);
+    });
+  }
+
+  /**
+   * Turn timer warning tick (synthesized high/low woodblock click)
+   */
+  public playTimerTick(isUrgent = false): void {
+    if (!this.ctx || !this.masterGain || this.isMuted) return;
+    this.resume();
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = isUrgent ? 'sawtooth' : 'sine';
+    osc.frequency.setValueAtTime(isUrgent ? 880 : 520, t);
+    osc.frequency.exponentialRampToValueAtTime(isUrgent ? 440 : 260, t + 0.04);
+
+    gain.gain.setValueAtTime(isUrgent ? 0.22 : 0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.045);
+  }
+
+  /**
+   * Low-frequency buzzer for fouls
+   */
+  public playFoulBuzzer(): void {
+    if (!this.ctx || !this.masterGain || this.isMuted) return;
+    this.resume();
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(130, t);
+    osc.frequency.setValueAtTime(110, t + 0.12);
+
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.29);
+  }
 }

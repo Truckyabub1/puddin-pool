@@ -47,6 +47,9 @@ export interface NineBallShotResult {
   nextShooter: NineBallPlayer;
   ballInHand: boolean;
   nineBallRespotted: boolean;
+  tenBallRespotted?: boolean;
+  shouldAutoRestart?: boolean;
+  accoladeText?: string;
   player1FoulCount: number;
   player2FoulCount: number;
   coachPuddinWarningTriggered: boolean;
@@ -71,6 +74,9 @@ export class NineBallRules {
   private solidsPlayer: NineBallPlayer | null = null;
   private stripesPlayer: NineBallPlayer | null = null;
 
+  private player1StraightScore: number = 0;
+  private player2StraightScore: number = 0;
+
   constructor() {
     this.reset();
   }
@@ -94,6 +100,8 @@ export class NineBallRules {
     this.isTableOpen = true;
     this.solidsPlayer = null;
     this.stripesPlayer = null;
+    this.player1StraightScore = 0;
+    this.player2StraightScore = 0;
   }
 
   public getPushOutAvailable(): boolean {
@@ -109,10 +117,24 @@ export class NineBallRules {
   }
 
   public getPlayerGroup(player: NineBallPlayer): string {
-    if (this.gameMode !== '8ball' || this.isTableOpen) return 'OPEN';
-    if (this.solidsPlayer === player) return 'SOLIDS (1-7)';
-    if (this.stripesPlayer === player) return 'STRIPES (9-15)';
-    return 'OPEN';
+    if (this.gameMode === '8ball') {
+      if (this.isTableOpen) return 'OPEN';
+      if (this.solidsPlayer === player) return 'SOLIDS (1-7)';
+      if (this.stripesPlayer === player) return 'STRIPES (9-15)';
+      return 'OPEN';
+    }
+    if (this.gameMode === 'straight') {
+      const score = player === NineBallPlayer.Player1 ? this.player1StraightScore : this.player2StraightScore;
+      return `PTS: ${score}/14`;
+    }
+    if (this.gameMode === 'practice') {
+      return 'FREE PLAY';
+    }
+    return 'ROTATION';
+  }
+
+  public getStraightScore(player: NineBallPlayer): number {
+    return player === NineBallPlayer.Player1 ? this.player1StraightScore : this.player2StraightScore;
   }
 
   public getFoulCount(player: NineBallPlayer): number {
@@ -133,6 +155,15 @@ export class NineBallRules {
   public evaluateShot(shot: NineBallShotInput, lowestBallOnTable: number, unsunkBalls: number[] = []): NineBallShotResult {
     if (this.gameMode === '8ball') {
       return this.evaluate8BallShot(shot, unsunkBalls);
+    }
+    if (this.gameMode === '10ball') {
+      return this.evaluate10BallShot(shot, lowestBallOnTable);
+    }
+    if (this.gameMode === 'straight') {
+      return this.evaluateStraightPoolShot(shot);
+    }
+    if (this.gameMode === 'practice') {
+      return this.evaluatePracticeShot(shot);
     }
 
     return this.evaluate9BallShot(shot, lowestBallOnTable);
@@ -253,6 +284,7 @@ export class NineBallRules {
       const msg = shot.isBreakShot
         ? "Coach Puddin: 'GOLDEN BREAK! 9-ball pocketed on the break! Pure masterclass.'"
         : "Coach Puddin: 'Sensational combination! 9-ball dropped legally for the WIN!'";
+      const accolade = shot.isBreakShot ? "🌟 GOLDEN BREAK!" : "🏆 9-BALL POCKETED!";
       return {
         isLegal: true,
         foulType: NineBallFoulType.None,
@@ -260,6 +292,8 @@ export class NineBallRules {
         nextShooter: shot.shooter,
         ballInHand: false,
         nineBallRespotted: false,
+        shouldAutoRestart: true,
+        accoladeText: accolade,
         player1FoulCount: this.player1ConsecutiveFouls,
         player2FoulCount: this.player2ConsecutiveFouls,
         coachPuddinWarningTriggered: false,
@@ -281,6 +315,7 @@ export class NineBallRules {
         nextShooter: shot.shooter,
         ballInHand: false,
         nineBallRespotted: false,
+        accoladeText: shot.ballsPocketed.length > 1 ? "🔥 COMBO!" : "🎯 NICE POT!",
         player1FoulCount: this.player1ConsecutiveFouls,
         player2FoulCount: this.player2ConsecutiveFouls,
         coachPuddinWarningTriggered: false,
@@ -481,6 +516,211 @@ export class NineBallRules {
       player2FoulCount: 0,
       coachPuddinWarningTriggered: false,
       coachPuddinMessage: "Coach Puddin: 'Table passes to opponent. Keep your eyes sharp.'",
+    };
+  }
+
+  private evaluate10BallShot(shot: NineBallShotInput, lowestBallOnTable: number): NineBallShotResult {
+    const tenPocketed = shot.ballsPocketed.includes(10);
+    const shooter = shot.shooter;
+    const opponent = this.getOpponent(shooter);
+
+    // Foul check in 10-Ball
+    let foul = NineBallFoulType.None;
+    if (shot.cueScratch) {
+      foul = NineBallFoulType.CueBallScratch;
+    } else if (shot.firstContactBallId !== lowestBallOnTable) {
+      foul = NineBallFoulType.WrongFirstContact;
+    } else if (shot.ballsPocketed.length === 0 && !shot.railHitAfterContact) {
+      foul = NineBallFoulType.NoRailAfterContact;
+    }
+
+    if (foul !== NineBallFoulType.None) {
+      this.currentPlayer = opponent;
+      return {
+        isLegal: false,
+        foulType: foul,
+        gameStatus: NineBallGameStatus.RackInProgress,
+        nextShooter: opponent,
+        ballInHand: true,
+        nineBallRespotted: false,
+        tenBallRespotted: tenPocketed,
+        accoladeText: foul === NineBallFoulType.CueBallScratch ? "SCRATCH!" : "FOUL!",
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: "Coach Puddin: 'Foul in 10-Ball! Opponent receives Ball-in-Hand.'",
+      };
+    }
+
+    // Official WPA 10-Ball: Pocketing 10-ball on break respots to foot spot
+    if (shot.isBreakShot && tenPocketed) {
+      return {
+        isLegal: true,
+        foulType: NineBallFoulType.None,
+        gameStatus: NineBallGameStatus.RackInProgress,
+        nextShooter: shooter,
+        ballInHand: false,
+        nineBallRespotted: false,
+        tenBallRespotted: true,
+        accoladeText: "10-BALL RESPOTTED",
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: "Coach Puddin: '10-Ball on the break is respotted under official WPA rules.'",
+      };
+    }
+
+    // Pocketing 10-ball legally on combo or final ball
+    if (tenPocketed) {
+      this.gameStatus = shooter === NineBallPlayer.Player1 ? NineBallGameStatus.Player1Win : NineBallGameStatus.Player2Win;
+      return {
+        isLegal: true,
+        foulType: NineBallFoulType.None,
+        gameStatus: this.gameStatus,
+        nextShooter: shooter,
+        ballInHand: false,
+        nineBallRespotted: false,
+        tenBallRespotted: false,
+        shouldAutoRestart: true,
+        accoladeText: "🏆 10-BALL WIN!",
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: "Coach Puddin: '10-Ball sunk legally! That is the rack WIN!'",
+      };
+    }
+
+    if (shot.ballsPocketed.length > 0) {
+      this.currentPlayer = shooter;
+      return {
+        isLegal: true,
+        foulType: NineBallFoulType.None,
+        gameStatus: NineBallGameStatus.RackInProgress,
+        nextShooter: shooter,
+        ballInHand: false,
+        nineBallRespotted: false,
+        accoladeText: shot.ballsPocketed.length > 1 ? "🔥 COMBO!" : "🎯 NICE POT!",
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: "Coach Puddin: 'Clean pot. Keep your cue level.'",
+      };
+    }
+
+    this.currentPlayer = opponent;
+    return {
+      isLegal: true,
+      foulType: NineBallFoulType.None,
+      gameStatus: NineBallGameStatus.RackInProgress,
+      nextShooter: opponent,
+      ballInHand: false,
+      nineBallRespotted: false,
+      player1FoulCount: 0,
+      player2FoulCount: 0,
+      coachPuddinWarningTriggered: false,
+      coachPuddinMessage: "Coach Puddin: 'Safety played. Table passes to opponent.'",
+    };
+  }
+
+  private evaluateStraightPoolShot(shot: NineBallShotInput): NineBallShotResult {
+    const shooter = shot.shooter;
+    const opponent = this.getOpponent(shooter);
+
+    if (shot.cueScratch) {
+      if (shooter === NineBallPlayer.Player1) {
+        this.player1StraightScore = Math.max(0, this.player1StraightScore - 1);
+      } else {
+        this.player2StraightScore = Math.max(0, this.player2StraightScore - 1);
+      }
+      this.currentPlayer = opponent;
+      return {
+        isLegal: false,
+        foulType: NineBallFoulType.CueBallScratch,
+        gameStatus: NineBallGameStatus.RackInProgress,
+        nextShooter: opponent,
+        ballInHand: true,
+        nineBallRespotted: false,
+        accoladeText: "FOUL: -1 PT",
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: "Coach Puddin: 'Scratch in Straight Pool! Penalty of 1 point.'",
+      };
+    }
+
+    if (shot.ballsPocketed.length > 0) {
+      const pts = shot.ballsPocketed.length;
+      if (shooter === NineBallPlayer.Player1) {
+        this.player1StraightScore += pts;
+      } else {
+        this.player2StraightScore += pts;
+      }
+
+      const score = (shooter === NineBallPlayer.Player1) ? this.player1StraightScore : this.player2StraightScore;
+      if (score >= 14) {
+        this.gameStatus = shooter === NineBallPlayer.Player1 ? NineBallGameStatus.Player1Win : NineBallGameStatus.Player2Win;
+        return {
+          isLegal: true,
+          foulType: NineBallFoulType.None,
+          gameStatus: this.gameStatus,
+          nextShooter: shooter,
+          ballInHand: false,
+          nineBallRespotted: false,
+          shouldAutoRestart: true,
+          accoladeText: "🏆 14 PTS VICTORY!",
+          player1FoulCount: 0,
+          player2FoulCount: 0,
+          coachPuddinWarningTriggered: false,
+          coachPuddinMessage: "Coach Puddin: 'Target 14 points reached! Pure masterclass run.'",
+        };
+      }
+
+      this.currentPlayer = shooter;
+      return {
+        isLegal: true,
+        foulType: NineBallFoulType.None,
+        gameStatus: NineBallGameStatus.RackInProgress,
+        nextShooter: shooter,
+        ballInHand: false,
+        nineBallRespotted: false,
+        accoladeText: `+${pts} PT${pts > 1 ? 'S' : ''}!`,
+        player1FoulCount: 0,
+        player2FoulCount: 0,
+        coachPuddinWarningTriggered: false,
+        coachPuddinMessage: `Coach Puddin: 'Potted! Total score: ${score} points.'`,
+      };
+    }
+
+    this.currentPlayer = opponent;
+    return {
+      isLegal: true,
+      foulType: NineBallFoulType.None,
+      gameStatus: NineBallGameStatus.RackInProgress,
+      nextShooter: opponent,
+      ballInHand: false,
+      nineBallRespotted: false,
+      player1FoulCount: 0,
+      player2FoulCount: 0,
+      coachPuddinWarningTriggered: false,
+      coachPuddinMessage: "Coach Puddin: 'Innings over. Opponent to the table.'",
+    };
+  }
+
+  private evaluatePracticeShot(shot: NineBallShotInput): NineBallShotResult {
+    return {
+      isLegal: !shot.cueScratch,
+      foulType: shot.cueScratch ? NineBallFoulType.CueBallScratch : NineBallFoulType.None,
+      gameStatus: NineBallGameStatus.RackInProgress,
+      nextShooter: NineBallPlayer.Player1,
+      ballInHand: shot.cueScratch,
+      nineBallRespotted: false,
+      accoladeText: shot.ballsPocketed.length > 0 ? (shot.ballsPocketed.length > 1 ? "🔥 COMBO!" : "🎯 NICE POT!") : undefined,
+      player1FoulCount: 0,
+      player2FoulCount: 0,
+      coachPuddinWarningTriggered: false,
+      coachPuddinMessage: shot.ballsPocketed.length > 0 
+        ? "Coach Puddin: 'Sweet pot, son! Setting up your next angle.'"
+        : "Coach Puddin: 'Practice makes perfect. Adjust your cue angle and try again.'",
     };
   }
 

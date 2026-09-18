@@ -124,7 +124,7 @@ export class TableRenderer {
     this.ctx.restore();
   }
 
-  public drawRails(pockets: { x: number; y: number; r: number }[]): void {
+  public drawRails(pockets: { x: number; y: number; r: number }[], targetPocketIndex?: number): void {
     const ctx = this.ctx;
     const tw = this.tableDrawW;
     const th = this.tableDrawH;
@@ -151,8 +151,8 @@ export class TableRenderer {
     // 4. Simonis Worsted Cloth Bed
     this.drawFelt(tw, th);
 
-    // 5. Pockets with drop wells
-    this.drawPockets(pockets);
+    // 5. Pockets with drop wells & dynamic target pocket highlight
+    this.drawPockets(pockets, targetPocketIndex);
   }
 
   private drawDiamondMarkers(tw: number, th: number, rail: number): void {
@@ -192,9 +192,12 @@ export class TableRenderer {
   private drawFelt(tw: number, th: number): void {
     const ctx = this.ctx;
 
-    // Fill felt base with procedural micro-fiber texture
+    // Base Felt Texture Tile
     if (this.feltPattern) {
       ctx.fillStyle = this.feltPattern;
+      ctx.fillRect(0, 0, tw, th);
+    } else {
+      ctx.fillStyle = '#0b6656';
       ctx.fillRect(0, 0, tw, th);
     }
 
@@ -228,7 +231,7 @@ export class TableRenderer {
     ctx.fillRect(tw - 6, 0, 6, th);
   }
 
-  private drawPockets(pockets: { x: number; y: number; r: number }[]): void {
+  private drawPockets(pockets: { x: number; y: number; r: number }[], targetPocketIndex?: number): void {
     const ctx = this.ctx;
     for (let i = 0; i < pockets.length; ++i) {
       const p = pockets[i];
@@ -271,6 +274,24 @@ export class TableRenderer {
       ctx.arc(px, py, pr - 1.2, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+
+      // 5. Miniclip Signature Target Pocket Glowing Aura Highlight
+      if (targetPocketIndex === i) {
+        ctx.save();
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.28)';
+        ctx.beginPath();
+        ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
   }
 

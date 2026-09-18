@@ -360,6 +360,16 @@
       <span class="badge">Live Web v1.0</span>
     </div>
     <div class="header-actions">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <label for="variation-select" style="font-size: 0.75rem; font-weight: 700; color: #94a3b8;">VARIATION:</label>
+        <select id="variation-select" style="background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+          <option value="9ball" selected>WPA 9-Ball</option>
+          <option value="8ball">WPA 8-Ball</option>
+          <option value="10ball">WPA 10-Ball</option>
+          <option value="straight">14.1 Straight Pool</option>
+          <option value="practice">Practice / Free-Play</option>
+        </select>
+      </div>
       <button class="btn btn-primary" id="btn-ask-puddin">
         <span>👴</span> Ask Elder Puddin
       </button>
@@ -374,6 +384,38 @@
 
   <div id="game-container">
     <canvas id="pool-table"></canvas>
+
+    <!-- Miniclip Pro iOS Match HUD -->
+    <div id="miniclip-hud" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; z-index: 25; pointer-events: none;">
+      <div id="p1-chip" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1.5px solid #38bdf8; border-radius: 20px; padding: 4px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);">
+        <span style="font-size: 16px;">🤠</span>
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-size: 11px; font-weight: 800; color: #f8fafc;">P1: <strong id="p1-score">0</strong></span>
+          <span id="p1-group" style="font-size: 8.5px; font-weight: 700; color: #38bdf8;">ROTATION</span>
+        </div>
+      </div>
+      <div style="background: rgba(251, 191, 36, 0.2); border: 1px solid #fbbf24; border-radius: 10px; padding: 2px 8px; font-size: 9.5px; font-weight: 900; color: #fbbf24;">VS</div>
+      <div id="p2-chip" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); border: 1.5px solid rgba(255, 255, 255, 0.12); border-radius: 20px; padding: 4px 12px; display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+          <span style="font-size: 11px; font-weight: 800; color: #f8fafc;">P2: <strong id="p2-score">0</strong></span>
+          <span id="p2-group" style="font-size: 8.5px; font-weight: 700; color: #94a3b8;">ROTATION</span>
+        </div>
+        <span style="font-size: 16px;">🎩</span>
+      </div>
+    </div>
+
+    <!-- Floating Shot Accolade -->
+    <div id="shot-toast" style="display: none; position: absolute; top: 18%; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #0ea5e9, #6366f1); color: #fff; font-size: 16px; font-weight: 900; letter-spacing: 1px; padding: 8px 24px; border-radius: 30px; box-shadow: 0 10px 30px rgba(14, 165, 233, 0.5); z-index: 50; pointer-events: none;"></div>
+
+    <!-- Auto-Restart Banner (When 9-Ball or game is won) -->
+    <div id="restart-card" style="display: none; position: absolute; top: 22%; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(16px); border: 2px solid #fbbf24; border-radius: 18px; padding: 14px 24px; align-items: center; gap: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 191, 36, 0.35); z-index: 55;">
+      <span style="font-size: 36px;">🏆</span>
+      <div style="display: flex; flex-direction: column;">
+        <h3 id="restart-title" style="font-size: 15px; font-weight: 800; color: #fbbf24; margin: 0;">9-BALL POCKETED! PLAYER 1 WINS!</h3>
+        <p id="restart-sub" style="font-size: 12px; color: #cbd5e1; margin: 2px 0 0;">Game ended • Starting new rack in <strong id="restart-countdown">3</strong>s...</p>
+      </div>
+      <button id="btn-restart-now" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 10px; padding: 8px 16px; font-weight: 800; font-size: 12px; cursor: pointer; white-space: nowrap;">⚡ Restart Now</button>
+    </div>
 
     <!-- Coach Puddin Overlay -->
     <div id="coach-overlay">
@@ -558,6 +600,25 @@
         osc.start(now);
         osc.stop(now + 0.04);
       }
+      playVictory() {
+        this.init();
+        const now = this.ctx.currentTime;
+        const freqs = [523.25, 659.25, 783.99, 1046.50];
+        freqs.forEach((f, i) => {
+          const t = now + i * 0.12;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.01, t);
+          gain.gain.linearRampToValueAtTime(0.3, t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.52);
+        });
+      }
     }
 
     const audio = new AudioEngine();
@@ -565,6 +626,14 @@
     // --- Billiards Physics & Game State ---
     const canvas = document.getElementById("pool-table");
     const ctx = canvas.getContext("2d");
+
+    let currentMode = "9ball";
+    let p1Score = 0;
+    let p2Score = 0;
+    let isP1Turn = true;
+    let isRackWon = false;
+    let autoRestartTimer = null;
+    let targetPocketIndex = null;
 
     const BALL_RADIUS_M = 0.028575;
     const TABLE_WIDTH_M = 2.24;
@@ -660,31 +729,132 @@
       pockets.push({ x: TABLE_WIDTH_M - cornerR, y: TABLE_HEIGHT_M - cornerR, r: cornerR });
     }
 
-    function resetRack() {
+    function resetRack(mode = currentMode) {
+      if (autoRestartTimer) {
+        clearInterval(autoRestartTimer);
+        autoRestartTimer = null;
+      }
+      const card = document.getElementById("restart-card");
+      if (card) card.style.display = "none";
+      isRackWon = false;
+      currentMode = mode;
       balls.length = 0;
+
       // Cue ball
       balls.push(new Ball(0, TABLE_WIDTH_M * 0.25, TABLE_HEIGHT_M * 0.5));
 
-      // 15 Object balls rack (Triangle)
       const apexX = TABLE_WIDTH_M * 0.70;
       const apexY = TABLE_HEIGHT_M * 0.50;
       const d = BALL_RADIUS_M * 2.0;
       const rowSpacing = d * Math.sqrt(3.0) * 0.5;
 
-      let ballId = 1;
-      for (let row = 0; row < 5; ++row) {
-        const colX = apexX + row * rowSpacing;
-        const startY = apexY - (row * d * 0.5);
-        for (let i = 0; i <= row; ++i) {
-          const ballY = startY + i * d;
-          balls.push(new Ball(ballId++, colX, ballY));
+      if (mode === "9ball") {
+        // Official 9-Ball Diamond Rack: 1 at apex, 9 in center
+        const diamondIds = [
+          [1],
+          [2, 3],
+          [4, 9, 5],
+          [6, 7],
+          [8]
+        ];
+        for (let row = 0; row < diamondIds.length; ++row) {
+          const rowBalls = diamondIds[row];
+          const colX = apexX + row * rowSpacing;
+          const startY = apexY - (rowBalls.length - 1) * d * 0.5;
+          for (let i = 0; i < rowBalls.length; ++i) {
+            balls.push(new Ball(rowBalls[i], colX, startY + i * d));
+          }
+        }
+        setCoachDialogue("WPA 9-Ball: Strike lowest ball first! Sinking the 9-ball legally wins, ends the game, and starts over.");
+      } else if (mode === "10ball") {
+        // 10-Ball Triangle
+        const tenIds = [
+          [1],
+          [2, 3],
+          [4, 10, 5],
+          [6, 7, 8, 9]
+        ];
+        for (let row = 0; row < tenIds.length; ++row) {
+          const rowBalls = tenIds[row];
+          const colX = apexX + row * rowSpacing;
+          const startY = apexY - (rowBalls.length - 1) * d * 0.5;
+          for (let i = 0; i < rowBalls.length; ++i) {
+            balls.push(new Ball(rowBalls[i], colX, startY + i * d));
+          }
+        }
+        setCoachDialogue("WPA 10-Ball: Strike lowest ball first. 10-ball on break respots; call shot or legal combo to win!");
+      } else {
+        // 15-ball Triangle (8ball, straight, practice)
+        let ballId = 1;
+        for (let row = 0; row < 5; ++row) {
+          const colX = apexX + row * rowSpacing;
+          const startY = apexY - (row * d * 0.5);
+          for (let i = 0; i <= row; ++i) {
+            balls.push(new Ball(ballId++, colX, startY + i * d));
+          }
+        }
+        if (mode === "8ball") {
+          setCoachDialogue("WPA 8-Ball: Open table on break. First legal pot claims Solids or Stripes. Pocket 8-ball after clearing group.");
+        } else if (mode === "straight") {
+          setCoachDialogue("14.1 Straight Pool: Any ball pocketed scores 1 point! Race to 14 points.");
+        } else {
+          setCoachDialogue("Practice Mode: Unlimited guidelines, free cue ball positioning, and instant resets.");
         }
       }
 
       aimAngle = 0.0;
       pullTension = 0.0;
       updateStatusBar();
-      setCoachDialogue("Rack is set tight, son! Don't just hit it hard, aim right through the center of that head ball.");
+      updateMiniclipHUD();
+    }
+
+    function showAccolade(text) {
+      const toast = document.getElementById("shot-toast");
+      if (!toast) return;
+      toast.textContent = text;
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 2000);
+    }
+
+    function triggerVictory(winnerTitle, winnerSub) {
+      isRackWon = true;
+      audio.playVictory();
+      p1Score++;
+      updateMiniclipHUD();
+      showAccolade("🏆 " + winnerTitle);
+
+      const card = document.getElementById("restart-card");
+      if (card) {
+        document.getElementById("restart-title").textContent = winnerTitle;
+        document.getElementById("restart-sub").innerHTML = `${winnerSub} • Starting new rack in <strong id="restart-countdown">3</strong>s...`;
+        card.style.display = "flex";
+      }
+
+      let countdown = 3;
+      if (autoRestartTimer) clearInterval(autoRestartTimer);
+      autoRestartTimer = setInterval(() => {
+        countdown--;
+        const cntEl = document.getElementById("restart-countdown");
+        if (cntEl) cntEl.textContent = countdown;
+        if (countdown <= 0) {
+          clearInterval(autoRestartTimer);
+          autoRestartTimer = null;
+          if (card) card.style.display = "none";
+          resetRack(currentMode);
+        }
+      }, 1000);
+    }
+
+    function updateMiniclipHUD() {
+      const p1El = document.getElementById("p1-score");
+      const p2El = document.getElementById("p2-score");
+      if (p1El) p1El.textContent = p1Score;
+      if (p2El) p2El.textContent = p2Score;
+      const grp = (currentMode === "9ball" || currentMode === "10ball") ? "ROTATION" : (currentMode === "8ball" ? "OPEN" : "POINTS");
+      const g1 = document.getElementById("p1-group");
+      const g2 = document.getElementById("p2-group");
+      if (g1) g1.textContent = grp;
+      if (g2) g2.textContent = grp;
     }
 
     // --- Coach Puddin Dialogues ---
@@ -756,7 +926,20 @@
                 b.x = TABLE_WIDTH_M * 0.25;
                 b.y = TABLE_HEIGHT_M * 0.5;
               }, 1200);
+            } else if (b.id === 9 && currentMode === "9ball") {
+              triggerVictory("9-BALL POCKETED! PLAYER 1 WINS!", "Game ended legally");
+            } else if (b.id === 10 && currentMode === "10ball") {
+              triggerVictory("10-BALL POCKETED! PLAYER 1 WINS!", "Game ended legally");
+            } else if (b.id === 8 && currentMode === "8ball") {
+              const remainingSolidsOrStripes = balls.filter(x => !x.isSunk && x.id > 0 && x.id !== 8).length;
+              if (remainingSolidsOrStripes <= 7) {
+                triggerVictory("8-BALL POCKETED! PLAYER 1 WINS!", "Game ended legally");
+              } else {
+                setCoachDialogue("Early 8-ball loss! Game ended and starting over.");
+                triggerVictory("EARLY 8-BALL! RACK FORFEIT", "Opponent wins rack");
+              }
             } else {
+              showAccolade("🎯 NICE POT!");
               setCoachDialogue("That's how you let the cue stick do the talking, son! Beautiful pot.");
             }
             updateStatusBar();
@@ -889,16 +1072,33 @@
         deflectX /= len;
         deflectY /= len;
 
+        // Check target pocket alignment (Miniclip pocket highlight)
+        let targetPocketIndex = -1;
+        for (let pIdx = 0; pIdx < pockets.length; pIdx++) {
+          const p = pockets[pIdx];
+          const toPktX = p.x - closestBall.x;
+          const toPktY = p.y - closestBall.y;
+          const dot = toPktX * normX + toPktY * normY;
+          if (dot > 0) {
+            const perpDistSq = (toPktX * toPktX + toPktY * toPktY) - dot * dot;
+            if (perpDistSq < (p.r * 1.6) * (p.r * 1.6)) {
+              targetPocketIndex = pIdx;
+              break;
+            }
+          }
+        }
+
         return {
           hasHit: true,
           ghostX, ghostY,
           targetBall: closestBall,
           normX, normY,
-          deflectX, deflectY
+          deflectX, deflectY,
+          targetPocketIndex
         };
       }
 
-      return { hasHit: false };
+      return { hasHit: false, targetPocketIndex: -1 };
     }
 
     // --- Rendering Loop ---
@@ -914,10 +1114,35 @@
       ctx.strokeStyle = "#451a03";
       ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
+      const pred = (isQuiescent && !balls[0].isSunk) ? predictTrajectory() : null;
+
       // Pockets
-      for (const p of pockets) {
+      for (let i = 0; i < pockets.length; i++) {
+        const p = pockets[i];
+        const px = p.x * scale;
+        const py = p.y * scale;
+        const pr = p.r * scale;
+
+        // Miniclip signature target pocket glowing emerald aura
+        if (pred && pred.targetPocketIndex === i) {
+          ctx.save();
+          ctx.shadowColor = "#10b981";
+          ctx.shadowBlur = 18;
+          ctx.strokeStyle = "#34d399";
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = "rgba(16, 185, 129, 0.28)";
+          ctx.beginPath();
+          ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
         ctx.beginPath();
-        ctx.arc(p.x * scale, p.y * scale, p.r * scale, 0, Math.PI * 2);
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
         ctx.fillStyle = "#09090b";
         ctx.fill();
         ctx.lineWidth = 2;
@@ -926,46 +1151,44 @@
       }
 
       // Trajectory Preview Line & Ghost Ball
-      if (isQuiescent && !balls[0].isSunk) {
-        const pred = predictTrajectory();
+      if (pred) {
         const cue = balls[0];
-
         ctx.lineWidth = 1.5;
         ctx.setLineDash([4, 4]);
 
-        if (pred && pred.hasHit) {
+        if (pred.hasHit) {
           // Ray to ghost ball
           ctx.beginPath();
           ctx.moveTo(cue.x * scale, cue.y * scale);
           ctx.lineTo(pred.ghostX * scale, pred.ghostY * scale);
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
           ctx.stroke();
 
           // Ghost Ball
           ctx.beginPath();
           ctx.arc(pred.ghostX * scale, pred.ghostY * scale, BALL_RADIUS_M * scale, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
           ctx.fill();
           ctx.lineWidth = 1.5;
-          ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
           ctx.stroke();
 
           // Target ball exit line
           ctx.beginPath();
           ctx.moveTo(pred.targetBall.x * scale, pred.targetBall.y * scale);
           ctx.lineTo(
-            (pred.targetBall.x + pred.normX * 0.5) * scale,
-            (pred.targetBall.y + pred.normY * 0.5) * scale
+            (pred.targetBall.x + pred.normX * 0.55) * scale,
+            (pred.targetBall.y + pred.normY * 0.55) * scale
           );
-          ctx.strokeStyle = "rgba(244, 63, 94, 0.85)";
+          ctx.strokeStyle = "rgba(244, 63, 94, 0.9)";
           ctx.stroke();
 
           // Cue ball deflection line
           ctx.beginPath();
           ctx.moveTo(pred.ghostX * scale, pred.ghostY * scale);
           ctx.lineTo(
-            (pred.ghostX + pred.deflectX * 0.35) * scale,
-            (pred.ghostY + pred.deflectY * 0.35) * scale
+            (pred.ghostX + pred.deflectX * 0.38) * scale,
+            (pred.ghostY + pred.deflectY * 0.38) * scale
           );
           ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
           ctx.stroke();
@@ -982,6 +1205,18 @@
         ctx.setLineDash([]);
       }
 
+      // Find lowest legal ball for rotation modes (9-ball / 10-ball)
+      let lowestBallId = -1;
+      if (currentMode === "9ball" || currentMode === "10ball") {
+        let minId = Infinity;
+        for (const b of balls) {
+          if (!b.isSunk && b.id > 0 && b.id < minId) {
+            minId = b.id;
+          }
+        }
+        if (minId !== Infinity) lowestBallId = minId;
+      }
+
       // Draw Balls
       for (const b of balls) {
         if (b.isSunk) continue;
@@ -996,10 +1231,32 @@
         ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
         ctx.fill();
 
+        // Lowest ball pulsing target indicator (Miniclip gold ring + arrow)
+        if (lowestBallId > 0 && b.id === lowestBallId) {
+          ctx.save();
+          const pulse = 1.0 + 0.12 * Math.sin(Date.now() * 0.008);
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(bx, by, br * 1.35 * pulse, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Bouncing Target Arrow Pointer
+          const arrowY = by - br * 1.65 - (pulse - 1.0) * 8;
+          ctx.fillStyle = "#fbbf24";
+          ctx.beginPath();
+          ctx.moveTo(bx, arrowY + 6);
+          ctx.lineTo(bx - 6, arrowY);
+          ctx.lineTo(bx + 6, arrowY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
         // Ball Body
         ctx.beginPath();
         ctx.arc(bx, by, br, 0, Math.PI * 2);
-        ctx.fillStyle = BALL_COLORS[b.id];
+        ctx.fillStyle = BALL_COLORS[b.id] || "#ffffff";
         ctx.fill();
 
         // Striped band
@@ -1031,31 +1288,84 @@
         ctx.fill();
       }
 
-      // Draw Cue Stick
+      // Draw 3D Tapered Maple Cue Stick (Miniclip Pro iOS Cue)
       if (isQuiescent && !balls[0].isSunk) {
         const cue = balls[0];
-        const dirX = Math.cos(aimAngle);
-        const dirY = Math.sin(aimAngle);
+        const cx = cue.x * scale;
+        const cy = cue.y * scale;
+        const r = BALL_RADIUS_M * scale;
 
-        const pullOffset = pullTension * 70 + (BALL_RADIUS_M * scale + 6);
-        const startX = cue.x * scale - dirX * pullOffset;
-        const startY = cue.y * scale - dirY * pullOffset;
-        const endX = startX - dirX * 220;
-        const endY = startY - dirY * 220;
+        const pullBack = 12 + pullTension * 65;
+        const stickDist = r + pullBack;
 
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(aimAngle + Math.PI);
+
+        // 1. Soft Ambient Cast Shadow
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = "#d97706";
-        ctx.stroke();
+        ctx.roundRect(stickDist + 4, -3, 230, 6, 3);
+        ctx.fill();
+        ctx.restore();
 
+        // 2. Leather Master Chalk Tip (Cyan Blue)
+        ctx.fillStyle = "#0284c7";
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(startX - dirX * 12, startY - dirY * 12);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = "#38bdf8";
-        ctx.stroke();
+        ctx.roundRect(stickDist, -2.5, 4.5, 5, [2, 0, 0, 2]);
+        ctx.fill();
+
+        // 3. Ferrule (Polished Ivory)
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(stickDist + 4.5, -2.8, 12, 5.6);
+
+        // 4. Tapered Canadian Hard Rock Maple Shaft
+        const shaftGrad = ctx.createLinearGradient(stickDist + 16.5, -3.5, stickDist + 120, 3.5);
+        shaftGrad.addColorStop(0, "#fef08a");
+        shaftGrad.addColorStop(0.5, "#f59e0b");
+        shaftGrad.addColorStop(1, "#d97706");
+        ctx.fillStyle = shaftGrad;
+        ctx.beginPath();
+        ctx.moveTo(stickDist + 16.5, -2.8);
+        ctx.lineTo(stickDist + 120, -4.0);
+        ctx.lineTo(stickDist + 120, 4.0);
+        ctx.lineTo(stickDist + 16.5, 2.8);
+        ctx.closePath();
+        ctx.fill();
+
+        // 5. Polished Brass Joint Collar
+        ctx.fillStyle = "#eab308";
+        ctx.fillRect(stickDist + 120, -4.2, 5, 8.4);
+
+        // 6. Pressed Irish Linen Handle Wrap
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(stickDist + 125, -4.2, 70, 8.4);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 1;
+        for (let s = stickDist + 130; s < stickDist + 195; s += 8) {
+          ctx.beginPath();
+          ctx.moveTo(s, -4.2);
+          ctx.lineTo(s, 4.2);
+          ctx.stroke();
+        }
+
+        // 7. Exotic Rosewood Butt Sleeve with Gold Trim
+        ctx.fillStyle = "#451a03";
+        ctx.fillRect(stickDist + 195, -4.4, 38, 8.8);
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillRect(stickDist + 210, -4.5, 2.5, 9.0);
+
+        // 8. Molded Synthetic Rubber Bumper Cap
+        ctx.fillStyle = "#09090b";
+        ctx.beginPath();
+        ctx.roundRect(stickDist + 233, -4.0, 7, 8.0, [0, 4, 4, 0]);
+        ctx.fill();
+
+        ctx.restore();
       }
     }
 
@@ -1199,6 +1509,26 @@
     document.getElementById("btn-reset").addEventListener("click", () => {
       resetRack();
     });
+
+    const variationSelect = document.getElementById("variation-select");
+    if (variationSelect) {
+      variationSelect.addEventListener("change", (e) => {
+        resetRack(e.target.value);
+      });
+    }
+
+    const btnRestartNow = document.getElementById("btn-restart-now");
+    if (btnRestartNow) {
+      btnRestartNow.addEventListener("click", () => {
+        if (autoRestartTimer) {
+          clearInterval(autoRestartTimer);
+          autoRestartTimer = null;
+        }
+        const card = document.getElementById("restart-card");
+        if (card) card.style.display = "none";
+        resetRack(currentMode);
+      });
+    }
 
     document.getElementById("btn-ask-puddin").addEventListener("click", () => {
       const cue = balls[0];

@@ -47,6 +47,9 @@ class PuddinPoolApp {
   private p1Score: number = 0;
   private p2Score: number = 0;
   private isRackWon: boolean = false;
+  private autoRestartTimerId: number | null = null;
+  private turnTimerRemaining: number = 35.0;
+  private readonly TURN_TIME_LIMIT: number = 35.0;
 
   constructor() {
     this.canvas = document.getElementById('table-canvas') as HTMLCanvasElement;
@@ -109,14 +112,28 @@ class PuddinPoolApp {
     };
 
     this.controls.onGameModeChanged = (mode) => {
+      if (this.autoRestartTimerId) {
+        window.clearInterval(this.autoRestartTimerId);
+        this.autoRestartTimerId = null;
+      }
+      this.controls.hideAutoRestartBanner();
       this.physics.resetRack(mode);
       this.rules.setGameMode(mode);
       this.isBallInHand = false;
+      this.isRackWon = false;
+      this.turnTimerRemaining = this.TURN_TIME_LIMIT;
       this.coachAvatar.setEmote(PuddinEmoteState.ADVICE);
+
       if (mode === '9ball') {
-        this.coachAvatar.speak("WPA 9-Ball: Strike lowest ball first! 9-ball on break or legal combo wins.");
+        this.coachAvatar.speak("WPA 9-Ball: Strike lowest ball first! Sinking the 9-ball legally wins, ends the game, and starts over.");
       } else if (mode === '8ball') {
-        this.coachAvatar.speak("WPA 8-Ball: Open table on break. First legal pocketed ball claims Solids or Stripes.");
+        this.coachAvatar.speak("WPA 8-Ball: Open table on break. First legal pot claims Solids or Stripes. Pocket 8-ball after clearing group.");
+      } else if (mode === '10ball') {
+        this.coachAvatar.speak("WPA 10-Ball: Strike lowest ball first! 10-ball on break respots; legal combo or 10-ball pot wins.");
+      } else if (mode === 'straight') {
+        this.coachAvatar.speak("14.1 Straight Pool: Any ball pocketed scores 1 point! First to 14 points takes the match.");
+      } else if (mode === 'practice') {
+        this.coachAvatar.speak("Practice Mode: Unlimited guidelines, free cue ball positioning anywhere, and instant table resets.");
       } else {
         this.coachAvatar.speak(`Mode switched to ${mode}. Rack reset and ready.`);
       }
@@ -125,11 +142,17 @@ class PuddinPoolApp {
     };
 
     this.controls.onRerackRequested = () => {
+      if (this.autoRestartTimerId) {
+        window.clearInterval(this.autoRestartTimerId);
+        this.autoRestartTimerId = null;
+      }
+      this.controls.hideAutoRestartBanner();
       this.physics.resetRack(this.physics.currentMode);
       this.rules.reset();
       this.isBallInHand = false;
       this.isPushOutPending = false;
       this.isRackWon = false;
+      this.turnTimerRemaining = this.TURN_TIME_LIMIT;
       this.activeLegendRec = null;
       this.coachAvatar.setLockLineVisible(false);
       this.coachAvatar.setEmote(PuddinEmoteState.IDLE, "Fresh rack set tight! Player 1 breaks.");
@@ -138,11 +161,17 @@ class PuddinPoolApp {
     };
 
     this.controls.onNextRackRequested = () => {
+      if (this.autoRestartTimerId) {
+        window.clearInterval(this.autoRestartTimerId);
+        this.autoRestartTimerId = null;
+      }
+      this.controls.hideAutoRestartBanner();
       this.physics.resetRack(this.physics.currentMode);
       this.rules.reset();
       this.isBallInHand = false;
       this.isPushOutPending = false;
       this.isRackWon = false;
+      this.turnTimerRemaining = this.TURN_TIME_LIMIT;
       this.activeLegendRec = null;
       this.coachAvatar.setLockLineVisible(false);
       const breaker = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'Player 1' : 'Player 2';
@@ -388,10 +417,13 @@ class PuddinPoolApp {
   }
 
   private updateWpaHud(): void {
+    const isP1 = (this.rules.getCurrentPlayer() === NineBallPlayer.Player1);
     const p1Fouls = this.rules.getFoulCount(NineBallPlayer.Player1);
     const p2Fouls = this.rules.getFoulCount(NineBallPlayer.Player2);
-    const curP = this.rules.getCurrentPlayer() === NineBallPlayer.Player1 ? 'P1' : 'P2';
+    const curP = isP1 ? 'P1' : 'P2';
     const group = this.rules.getPlayerGroup(this.rules.getCurrentPlayer());
+    const p1Group = this.rules.getPlayerGroup(NineBallPlayer.Player1);
+    const p2Group = this.rules.getPlayerGroup(NineBallPlayer.Player2);
 
     const pText = (group !== 'OPEN' && this.rules.getGameMode() === '8ball')
       ? `${curP} (${group})`
@@ -400,6 +432,10 @@ class PuddinPoolApp {
     const fText = `Fouls: P1:${p1Fouls} | P2:${p2Fouls}`;
     this.controls.setTurnInfo(pText, fText, this.isBallInHand);
     this.controls.setPushOutVisible(this.rules.getPushOutAvailable());
+
+    let matchStatus = this.physics.isBreakShot ? "BREAK SHOT" : (this.isBallInHand ? "BALL IN HAND" : `${curP} TO SHOOT`);
+    if (this.isRackWon) matchStatus = "RACK FINISHED";
+    this.controls.setPlayerProfiles(this.p1Score, this.p2Score, p1Group, p2Group, isP1, matchStatus);
   }
 
   private onShotCompleted(): void {
@@ -420,8 +456,13 @@ class PuddinPoolApp {
     const wasBreak = this.physics.isBreakShot;
     this.isPushOutPending = false;
     this.physics.isBreakShot = false;
+    this.turnTimerRemaining = this.TURN_TIME_LIMIT;
 
-    if (result.nineBallRespotted) {
+    if (result.accoladeText) {
+      this.controls.showAccolade(result.accoladeText);
+    }
+
+    if (result.nineBallRespotted || result.tenBallRespotted) {
       this.physics.respotNineBall();
     }
 
@@ -443,17 +484,42 @@ class PuddinPoolApp {
     if (isWin) {
       this.isRackWon = true;
       const winner = (result.gameStatus === NineBallGameStatus.Player1Win) ? NineBallPlayer.Player1 : NineBallPlayer.Player2;
+      const winnerName = (winner === NineBallPlayer.Player1) ? 'PLAYER 1' : 'PLAYER 2';
       if (winner === NineBallPlayer.Player1) {
         this.p1Score++;
       } else {
         this.p2Score++;
       }
       this.controls.setScore(this.p1Score, this.p2Score);
-      const winTitle = (winner === NineBallPlayer.Player1) ? 'PLAYER 1 WINS THE RACK!' : 'PLAYER 2 WINS THE RACK!';
+      this.audio.playVictoryStinger();
+
+      const winTitle = `${winnerName} WINS THE GAME!`;
       const winSub = wasBreak
         ? 'GOLDEN BREAK ON THE BREAK SHOT!'
-        : (result.foulType === NineBallFoulType.ThreeConsecutiveFouls ? 'Opponent 3 Consecutive Fouls Forfeit' : '9-Ball Sunk Legally');
-      this.controls.showVictoryModal(winTitle, winSub, this.p1Score, this.p2Score);
+        : (result.foulType === NineBallFoulType.ThreeConsecutiveFouls 
+            ? 'Opponent 3 Consecutive Fouls Forfeit' 
+            : (this.physics.currentMode === '9ball' 
+                ? '9-Ball Sunk Legally' 
+                : (this.physics.currentMode === '10ball' 
+                    ? '10-Ball Sunk Legally' 
+                    : (this.physics.currentMode === 'straight' ? '14 Points High Run Reached' : '8-Ball Pocketed Clean'))));
+
+      // Sinking 9-ball / Winning shot ends game and starts over automatically in 3 seconds!
+      let remaining = 3;
+      this.controls.showAutoRestartBanner(winTitle, winSub, remaining);
+      if (this.autoRestartTimerId) window.clearInterval(this.autoRestartTimerId);
+      this.autoRestartTimerId = window.setInterval(() => {
+        remaining--;
+        this.controls.updateAutoRestartCountdown(remaining);
+        if (remaining <= 0) {
+          if (this.autoRestartTimerId) {
+            window.clearInterval(this.autoRestartTimerId);
+            this.autoRestartTimerId = null;
+          }
+          this.controls.hideAutoRestartBanner();
+          this.controls.onNextRackRequested?.();
+        }
+      }, 1000);
     }
 
     const isLoss = !result.isLegal && (
@@ -515,11 +581,28 @@ class PuddinPoolApp {
       if (this.physics.isQuiescent) {
         this.onShotCompleted();
       }
+    } else if (!this.isRackWon && this.physics.currentMode !== 'practice') {
+      // Turn Timer countdown in active competitive modes
+      this.turnTimerRemaining -= dt;
+      const isP1 = (this.rules.getCurrentPlayer() === NineBallPlayer.Player1);
+      const ratio = Math.max(0, this.turnTimerRemaining / this.TURN_TIME_LIMIT);
+      this.controls.setTurnTimer(isP1, ratio);
+
+      if (this.turnTimerRemaining <= 0) {
+        // Time expired foul
+        this.turnTimerRemaining = this.TURN_TIME_LIMIT;
+        this.audio.playFoulBuzzer();
+        this.controls.showAccolade("⏰ TIME FOUL!");
+        this.isBallInHand = true;
+        this.isAwaitingBallPlacement = true;
+        this.coachAvatar.speak("Shot clock expired! Opponent receives Ball-in-Hand.");
+        this.updateWpaHud();
+      }
     }
 
     // Render Scene with TableRenderer and BallRenderer
     this.tableRenderer.beginScene();
-    this.tableRenderer.drawRails(this.physics.pockets);
+    this.tableRenderer.drawRails(this.physics.pockets, this.currentTrajectory?.targetPocketIndex);
     this.tableRenderer.drawLegendRoute(this.activeLegendRec);
     this.tableRenderer.drawTrajectory(this.currentTrajectory, this.physics.BALL_RADIUS);
     this.tableRenderer.drawContactAmbientOcclusion(this.physics.balls, this.physics.BALL_RADIUS);

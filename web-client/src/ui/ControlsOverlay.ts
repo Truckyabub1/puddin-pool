@@ -28,6 +28,24 @@ export class ControlsOverlay {
   private foulDisplay: HTMLElement;
   private bihBadge: HTMLElement;
 
+  // Miniclip iOS Match HUD elements
+  private p1Card: HTMLElement;
+  private p2Card: HTMLElement;
+  private p1ScorePill: HTMLElement;
+  private p2ScorePill: HTMLElement;
+  private p1GroupPill: HTMLElement;
+  private p2GroupPill: HTMLElement;
+  private p1TimerCircle: SVGCircleElement;
+  private p2TimerCircle: SVGCircleElement;
+  private matchStatusBanner: HTMLElement;
+  private accoladeToast: HTMLElement;
+  private autorestartCard: HTMLElement;
+  private autorestartTitle: HTMLElement;
+  private autorestartSub: HTMLElement;
+  private autorestartTimer: HTMLElement;
+  private btnInstantRestart: HTMLButtonElement;
+  private accoladeTimeout: number | null = null;
+
   private pushoutModal: HTMLElement;
   private pushoutDesc: HTMLElement;
   private btnPushoutAccept: HTMLButtonElement;
@@ -67,10 +85,13 @@ export class ControlsOverlay {
             </div>
 
             <div class="mode-selector-wrapper">
-              <label for="mode-select" class="nav-label">RULES:</label>
+              <label for="mode-select" class="nav-label">VARIATION:</label>
               <select id="mode-select" class="game-select">
                 <option value="9ball" selected>WPA 9-Ball</option>
                 <option value="8ball">WPA 8-Ball</option>
+                <option value="10ball">WPA 10-Ball</option>
+                <option value="straight">14.1 Straight Pool</option>
+                <option value="practice">Practice / Free-Play</option>
               </select>
             </div>
           </div>
@@ -97,6 +118,64 @@ export class ControlsOverlay {
             <button id="btn-install-app" class="nav-btn" style="background: rgba(16, 185, 129, 0.85); border-color: #34d399;" title="Install Puddin's Pool App to Device">📲 App</button>
             <button id="btn-rerack" class="nav-btn">🔄 Rack</button>
           </div>
+        </div>
+
+        <!-- Miniclip iOS Pro Match HUD Bar -->
+        <div class="miniclip-hud-bar">
+          <!-- Player 1 Profile Card -->
+          <div id="p1-card" class="miniclip-player-card p1-active">
+            <div class="avatar-ring-container">
+              <svg class="timer-svg" viewBox="0 0 44 44">
+                <circle class="timer-bg" cx="22" cy="22" r="18" />
+                <circle id="p1-timer-circle" class="timer-progress" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="0" />
+              </svg>
+              <div class="player-avatar-circle">🤠</div>
+            </div>
+            <div class="player-meta">
+              <div class="player-name-row">
+                <span class="player-name-text">PLAYER 1</span>
+                <span id="p1-score-badge" class="player-score-badge">0</span>
+              </div>
+              <div id="p1-group-pill" class="player-group-badge">ROTATION</div>
+            </div>
+          </div>
+
+          <!-- Center Match Status Pill -->
+          <div class="match-center-column">
+            <div class="match-vs-badge">VS</div>
+            <div id="match-status-banner" class="match-status-banner">BREAK SHOT</div>
+          </div>
+
+          <!-- Player 2 Profile Card -->
+          <div id="p2-card" class="miniclip-player-card">
+            <div class="player-meta right-align">
+              <div class="player-name-row">
+                <span id="p2-score-badge" class="player-score-badge">0</span>
+                <span class="player-name-text">PLAYER 2</span>
+              </div>
+              <div id="p2-group-pill" class="player-group-badge">ROTATION</div>
+            </div>
+            <div class="avatar-ring-container">
+              <svg class="timer-svg" viewBox="0 0 44 44">
+                <circle class="timer-bg" cx="22" cy="22" r="18" />
+                <circle id="p2-timer-circle" class="timer-progress" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1" />
+              </svg>
+              <div class="player-avatar-circle">🎩</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Shot Accolade Toast (Miniclip feedback banner) -->
+        <div id="accolade-toast" class="accolade-toast hidden"></div>
+
+        <!-- Auto-Restart Winner Banner (Miniclip 9-ball end & restart) -->
+        <div id="autorestart-card" class="autorestart-card hidden">
+          <div class="autorestart-trophy">🏆</div>
+          <div class="autorestart-content">
+            <h3 id="autorestart-title" class="autorestart-title">9-BALL POCKETED! PLAYER 1 WINS!</h3>
+            <p id="autorestart-sub" class="autorestart-sub">Game ended • Starting new rack in <strong id="autorestart-timer">3</strong>s...</p>
+          </div>
+          <button id="btn-instant-restart" class="autorestart-btn">⚡ Restart Now</button>
         </div>
 
         <!-- Push-Out Decision Modal (WPA 9.4) -->
@@ -212,6 +291,23 @@ export class ControlsOverlay {
     this.foulDisplay = this.container.querySelector('#foul-display') as HTMLElement;
     this.bihBadge = this.container.querySelector('#bih-badge') as HTMLElement;
 
+    // Miniclip iOS Player HUD bindings
+    this.p1Card = this.container.querySelector('#p1-card') as HTMLElement;
+    this.p2Card = this.container.querySelector('#p2-card') as HTMLElement;
+    this.p1ScorePill = this.container.querySelector('#p1-score-badge') as HTMLElement;
+    this.p2ScorePill = this.container.querySelector('#p2-score-badge') as HTMLElement;
+    this.p1GroupPill = this.container.querySelector('#p1-group-pill') as HTMLElement;
+    this.p2GroupPill = this.container.querySelector('#p2-group-pill') as HTMLElement;
+    this.p1TimerCircle = this.container.querySelector('#p1-timer-circle') as unknown as SVGCircleElement;
+    this.p2TimerCircle = this.container.querySelector('#p2-timer-circle') as unknown as SVGCircleElement;
+    this.matchStatusBanner = this.container.querySelector('#match-status-banner') as HTMLElement;
+    this.accoladeToast = this.container.querySelector('#accolade-toast') as HTMLElement;
+    this.autorestartCard = this.container.querySelector('#autorestart-card') as HTMLElement;
+    this.autorestartTitle = this.container.querySelector('#autorestart-title') as HTMLElement;
+    this.autorestartSub = this.container.querySelector('#autorestart-sub') as HTMLElement;
+    this.autorestartTimer = this.container.querySelector('#autorestart-timer') as HTMLElement;
+    this.btnInstantRestart = this.container.querySelector('#btn-instant-restart') as HTMLButtonElement;
+
     this.pushoutModal = this.container.querySelector('#pushout-modal') as HTMLElement;
     this.pushoutDesc = this.container.querySelector('#pushout-desc') as HTMLElement;
     this.btnPushoutAccept = this.container.querySelector('#btn-pushout-accept') as HTMLButtonElement;
@@ -228,6 +324,16 @@ export class ControlsOverlay {
   }
 
   private setupEvents(): void {
+    // Instant Restart on Auto-Restart Banner
+    this.btnInstantRestart.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.triggerHaptic(ImpactStyle.Medium);
+      this.hideAutoRestartBanner();
+      if (this.onNextRackRequested) {
+        this.onNextRackRequested();
+      }
+    });
+
     // Push-Out Modal Responses (WPA 9.4)
     this.btnPushoutAccept.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -460,6 +566,72 @@ export class ControlsOverlay {
 
   public hideVictoryModal(): void {
     this.victoryModal?.classList.add('hidden');
+  }
+
+  public setPlayerProfiles(
+    p1Score: number,
+    p2Score: number,
+    p1Group: string,
+    p2Group: string,
+    isP1Active: boolean,
+    matchStatus: string
+  ): void {
+    if (this.p1ScorePill) this.p1ScorePill.textContent = `${p1Score}`;
+    if (this.p2ScorePill) this.p2ScorePill.textContent = `${p2Score}`;
+    if (this.p1GroupPill) this.p1GroupPill.textContent = p1Group;
+    if (this.p2GroupPill) this.p2GroupPill.textContent = p2Group;
+    if (this.matchStatusBanner) this.matchStatusBanner.textContent = matchStatus;
+
+    if (this.p1Card && this.p2Card) {
+      this.p1Card.classList.toggle('p1-active', isP1Active);
+      this.p2Card.classList.toggle('p2-active', !isP1Active);
+    }
+  }
+
+  public setTurnTimer(isP1Active: boolean, percentNorm: number): void {
+    const circumference = 113.1;
+    const offset = circumference * (1.0 - Math.max(0, Math.min(1, percentNorm)));
+    const color = percentNorm < 0.25 ? '#ef4444' : percentNorm < 0.5 ? '#f59e0b' : '#38bdf8';
+
+    if (isP1Active && this.p1TimerCircle) {
+      this.p1TimerCircle.style.strokeDashoffset = `${offset}`;
+      this.p1TimerCircle.style.stroke = color;
+      if (this.p2TimerCircle) this.p2TimerCircle.style.strokeDashoffset = `${circumference}`;
+    } else if (!isP1Active && this.p2TimerCircle) {
+      this.p2TimerCircle.style.strokeDashoffset = `${offset}`;
+      this.p2TimerCircle.style.stroke = color;
+      if (this.p1TimerCircle) this.p1TimerCircle.style.strokeDashoffset = `${circumference}`;
+    }
+  }
+
+  public showAccolade(text: string, durationMs = 2000): void {
+    if (!this.accoladeToast) return;
+    if (this.accoladeTimeout) window.clearTimeout(this.accoladeTimeout);
+    this.accoladeToast.textContent = text;
+    this.accoladeToast.classList.remove('hidden');
+    this.accoladeToast.classList.add('pop-in');
+
+    this.accoladeTimeout = window.setTimeout(() => {
+      this.accoladeToast?.classList.add('hidden');
+      this.accoladeToast?.classList.remove('pop-in');
+    }, durationMs);
+  }
+
+  public showAutoRestartBanner(title: string, sub: string, countdownSec: number): void {
+    if (this.autorestartTitle) this.autorestartTitle.textContent = title;
+    if (this.autorestartSub) {
+      this.autorestartSub.innerHTML = `${sub} • Starting new rack in <strong id="autorestart-timer">${countdownSec}</strong>s...`;
+    }
+    this.autorestartCard?.classList.remove('hidden');
+  }
+
+  public updateAutoRestartCountdown(sec: number): void {
+    const el = this.container.querySelector('#autorestart-timer');
+    if (el) el.textContent = `${sec}`;
+  }
+
+  public hideAutoRestartBanner(): void {
+    this.autorestartCard?.classList.add('hidden');
   }
 
   private async triggerHaptic(style: ImpactStyle): Promise<void> {
